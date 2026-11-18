@@ -61,23 +61,27 @@ export class ErrorBoundary extends React.Component<Props, State> {
     const upgradeUrl = `https://console.firebase.google.com/project/${firebaseConfig.projectId}/firestore/databases/${firebaseConfig.firestoreDatabaseId}/data?openUpgradeDialog=true`;
 
     return (
-      <div className="min-h-screen bg-[#f7f5fb] flex items-center justify-center p-6">
-        <div className="max-w-lg w-full bg-white border border-[#e8e1ef] rounded-2xl p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-[#241436] mb-2">Something went wrong</h2>
-          <p className="text-sm text-[#6c6277] mb-3">{this.state.errorMessage}</p>
+      <div className="min-h-screen bg-[#f8f7fc] dark:bg-[#0f0b18] flex items-center justify-center p-6">
+        <div className="max-w-lg w-full bg-white dark:bg-[#181226] border border-[#e8e1ef] dark:border-[#2d2342] rounded-2xl p-6">
+          <h2 className="text-lg font-bold text-[#241436] dark:text-slate-100 mb-2">
+            Something went wrong
+          </h2>
+          <p className="text-sm text-[#6c6277] dark:text-slate-300 mb-3">
+            {this.state.errorMessage}
+          </p>
           {this.state.operationContext && (
-            <p className="text-xs font-mono bg-[#faf3fc] border border-[#f0dff1] text-[#644475] rounded-lg px-3 py-2 mb-4">
+            <p className="text-xs font-mono bg-[#faf3fc] dark:bg-[#221936] border border-[#f0dff1] dark:border-[#352752] text-[#644475] dark:text-purple-200 rounded-lg px-3 py-2 mb-4">
               Context: {this.state.operationContext}
             </p>
           )}
           {isDailyReadQuota && (
-            <p className="text-xs text-[#644475] mb-4">
+            <p className="text-xs text-[#644475] dark:text-slate-300 mb-4">
               Free daily read units were reached. You can review or upgrade your Firestore database in the{' '}
               <a
                 href={upgradeUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline font-semibold text-[#56249a]"
+                className="underline font-semibold text-[#56249a] dark:text-[#c084fc]"
               >
                 Firebase Console
               </a>
@@ -85,13 +89,13 @@ export class ErrorBoundary extends React.Component<Props, State> {
             </p>
           )}
           {!isDailyReadQuota && isQuotaError && (
-            <p className="text-xs text-[#644475] mb-4">
+            <p className="text-xs text-[#644475] dark:text-slate-300 mb-4">
               Firestore free-tier quota resets the next day. Details are available under the Spark plan column on{' '}
               <a
                 href="https://firebase.google.com/pricing#cloud-firestore"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="underline font-semibold text-[#56249a]"
+                className="underline font-semibold text-[#56249a] dark:text-[#c084fc]"
               >
                 Firebase Pricing
               </a>
@@ -101,7 +105,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
           <button
             type="button"
             onClick={this.handleReset}
-            className="px-4 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] hover:opacity-95 cursor-pointer"
+            className="px-4 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] hover:opacity-95 whitespace-nowrap shrink-0 cursor-pointer"
           >
             Return to Workspace
           </button>

@@ -6,6 +6,7 @@ import {
   FileSpreadsheet,
   FolderOpen,
   HardDrive,
+  Palette,
   Plus,
   RefreshCw,
   Search,
@@ -35,8 +36,13 @@ import {
 } from '../types';
 import { adsToCsv, adsToJson, SERVICE_DATA } from '../utils/adGenerator';
 import { GoogleSignInButton } from './GoogleSignInButton';
+import { BrandLogoKit } from './TidyupsLogo';
+
+export type HubTab = 'cloud' | 'sheets' | 'drive' | 'logos';
 
 interface WorkspaceHubProps {
+  activeTab: HubTab;
+  onTabChange: (tab: HubTab) => void;
   user: User | null;
   accessToken: string | null;
   isSigningIn: boolean;
@@ -56,9 +62,9 @@ interface WorkspaceHubProps {
   onTokenExpired: () => void;
 }
 
-type HubTab = 'cloud' | 'sheets' | 'drive';
-
 export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
+  activeTab,
+  onTabChange,
   user,
   accessToken,
   isSigningIn,
@@ -77,7 +83,6 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
   onStatus,
   onTokenExpired,
 }) => {
-  const [activeTab, setActiveTab] = useState<HubTab>('cloud');
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
   // Google Sheets state
@@ -101,13 +106,12 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
     const message = err instanceof Error ? err.message : String(err);
     if (message.startsWith('AUTH_EXPIRED:')) {
       onTokenExpired();
-      onStatus('Google Workspace token expired. Click Reconnect Google Workspace to continue.');
+      onStatus('Google Workspace token expired. Click Connect Google Workspace to continue.');
       return;
     }
     onStatus(message);
   };
 
-  // Load metadata whenever linkedSheetId changes and we have a token
   useEffect(() => {
     let cancelled = false;
     const loadMeta = async () => {
@@ -267,7 +271,9 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
             selectedSheetTab
           );
           setSheetPreviewRows(rows);
-          onStatus(`Appended ${ads.length} ad variation(s) to "${sheetMeta.title}" (${selectedSheetTab}).`);
+          onStatus(
+            `Appended ${ads.length} ad variation(s) to "${sheetMeta.title}" (${selectedSheetTab}).`
+          );
         } catch (err) {
           handleApiFailure(err);
         } finally {
@@ -306,7 +312,9 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
             selectedSheetTab
           );
           setSheetPreviewRows(rows);
-          onStatus(`Replaced "${selectedSheetTab}" in "${sheetMeta.title}" with ${ads.length} ad variation(s).`);
+          onStatus(
+            `Replaced "${selectedSheetTab}" in "${sheetMeta.title}" with ${ads.length} ad variation(s).`
+          );
         } catch (err) {
           handleApiFailure(err);
         } finally {
@@ -446,14 +454,17 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
   };
 
   return (
-    <div className="bg-white border border-[#e8e1ef] rounded-[18px] p-5 shadow-[0_5px_22px_#3318490b] mb-5 print:hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-[#e8e1ef]">
+    <div
+      id="workspace-hub"
+      className="bg-white dark:bg-[#181226] border border-[#e8e1ef] dark:border-[#2d2342] rounded-2xl p-6 mb-6 print:hidden"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#e8e1ef] dark:border-[#2d2342]">
         <div>
-          <h2 className="text-base font-bold text-[#241436]">
-            Cloud Campaigns &amp; Google Workspace
+          <h2 className="text-base font-bold text-[#241436] dark:text-slate-100">
+            Cloud Campaigns, Workspace &amp; Brand Kit
           </h2>
-          <p className="text-xs text-[#6c6277] mt-0.5">
-            Save campaigns to Firebase Firestore, export or sync ad tables with Google Sheets, and manage files in Google Drive &amp; Picker.
+          <p className="text-xs text-[#6c6277] dark:text-slate-400 mt-0.5">
+            Persist campaigns in Firebase Firestore, sync spreadsheets with Google Sheets &amp; Drive, or download official light and dark Tidyups logos.
           </p>
         </div>
 
@@ -474,49 +485,65 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
             label="Connect Google Workspace"
           />
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#f4e9fa] text-[#56249a] px-3 py-1 text-xs font-bold">
-            Workspace &amp; Firebase Connected
+          <span className="text-xs font-semibold text-[#56249a] dark:text-[#c084fc] whitespace-nowrap shrink-0">
+            Firebase &amp; Workspace Ready
           </span>
         )}
       </div>
 
-      {/* Tabs */}
-      <div className="flex flex-wrap gap-2 mt-4 mb-4">
+      {/* Interactive Segmented Tab Bar */}
+      <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#f4effa] dark:bg-[#110c1c] my-4">
         <button
           type="button"
-          onClick={() => setActiveTab('cloud')}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+          onClick={() => onTabChange('cloud')}
+          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 tabular-nums cursor-pointer ${
             activeTab === 'cloud'
-              ? 'bg-[#56249a] text-white'
-              : 'bg-[#faf3fc] text-[#56249a] hover:bg-[#f4e9fa]'
+              ? 'bg-white dark:bg-[#241b38] text-[#241436] dark:text-white shadow-xs'
+              : 'text-[#6c6277] dark:text-slate-400 hover:text-[#241436] dark:hover:text-slate-200'
           }`}
         >
           <Cloud className="w-3.5 h-3.5" />
           Saved Campaigns ({savedCampaigns.length})
         </button>
+
         <button
           type="button"
-          onClick={() => setActiveTab('sheets')}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+          onClick={() => onTabChange('sheets')}
+          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
             activeTab === 'sheets'
-              ? 'bg-[#56249a] text-white'
-              : 'bg-[#faf3fc] text-[#56249a] hover:bg-[#f4e9fa]'
+              ? 'bg-white dark:bg-[#241b38] text-[#241436] dark:text-white shadow-xs'
+              : 'text-[#6c6277] dark:text-slate-400 hover:text-[#241436] dark:hover:text-slate-200'
           }`}
         >
           <FileSpreadsheet className="w-3.5 h-3.5" />
-          Google Sheets &amp; Picker
+          Google Sheets
         </button>
+
         <button
           type="button"
-          onClick={() => setActiveTab('drive')}
-          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+          onClick={() => onTabChange('drive')}
+          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
             activeTab === 'drive'
-              ? 'bg-[#56249a] text-white'
-              : 'bg-[#faf3fc] text-[#56249a] hover:bg-[#f4e9fa]'
+              ? 'bg-white dark:bg-[#241b38] text-[#241436] dark:text-white shadow-xs'
+              : 'text-[#6c6277] dark:text-slate-400 hover:text-[#241436] dark:hover:text-slate-200'
           }`}
         >
           <HardDrive className="w-3.5 h-3.5" />
-          Google Drive &amp; Picker
+          Google Drive
+        </button>
+
+        <button
+          type="button"
+          id="brand-logos"
+          onClick={() => onTabChange('logos')}
+          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+            activeTab === 'logos'
+              ? 'bg-white dark:bg-[#241b38] text-[#241436] dark:text-white shadow-xs'
+              : 'text-[#6c6277] dark:text-slate-400 hover:text-[#241436] dark:hover:text-slate-200'
+          }`}
+        >
+          <Palette className="w-3.5 h-3.5" />
+          Brand Logos (Light &amp; Dark)
         </button>
       </div>
 
@@ -524,12 +551,12 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
       {activeTab === 'cloud' && (
         <div>
           {!user ? (
-            <div className="rounded-xl bg-[#faf3fc] border border-[#f0dff1] p-4 text-sm text-[#644475]">
+            <p className="text-sm text-[#6c6277] dark:text-slate-400 py-2 m-0">
               Sign in with Google above to save, reload, and manage Tidyups campaigns in Firebase Firestore.
-            </div>
+            </p>
           ) : (
-            <div className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2.5">
                 <button
                   type="button"
                   disabled={busyAction !== null || ads.length === 0}
@@ -541,7 +568,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                       setBusyAction(null);
                     }
                   }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] disabled:opacity-50 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   <UploadCloud className="w-3.5 h-3.5" />
                   {activeCampaignId ? 'Update Saved Campaign' : 'Save Campaign to Cloud'}
@@ -550,7 +577,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                   <button
                     type="button"
                     onClick={onNewCampaignDraft}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#d9c9e5] bg-white text-xs font-bold text-[#56249a] hover:bg-[#faf3fc] cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     New Draft
@@ -559,20 +586,20 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
               </div>
 
               {savedCampaigns.length === 0 ? (
-                <p className="text-xs text-[#6c6277] py-2">
+                <p className="text-xs text-[#6c6277] dark:text-slate-400 py-2 m-0">
                   No cloud campaigns saved yet. Generate ads and click <b>Save Campaign to Cloud</b>.
                 </p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto pr-1">
+                <div className="divide-y divide-[#e8e1ef] dark:divide-[#2d2342] max-h-64 overflow-y-auto">
                   {savedCampaigns.map((camp) => {
                     const isSelected = camp.id === activeCampaignId;
                     return (
                       <div
                         key={camp.id}
-                        className={`rounded-xl border p-3 flex items-start justify-between gap-2 transition ${
+                        className={`py-3 px-3 rounded-xl flex items-start justify-between gap-3 transition ${
                           isSelected
-                            ? 'border-[#56249a] bg-[#faf3fc]'
-                            : 'border-[#e8e1ef] bg-white hover:border-[#d9c9e5]'
+                            ? 'bg-[#faf3fc] dark:bg-[#221936]'
+                            : 'hover:bg-[#faf8fd] dark:hover:bg-[#1e1730]'
                         }`}
                       >
                         <button
@@ -582,33 +609,21 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                           }}
                           className="text-left min-w-0 flex-1 cursor-pointer"
                         >
-                          <div className="text-sm font-bold text-[#241436] truncate">
+                          <div className="text-sm font-bold text-[#241436] dark:text-slate-100 truncate">
                             {camp.title}
                           </div>
-                          <div className="text-xs text-[#6c6277] mt-0.5">
+                          <div className="text-xs text-[#6c6277] dark:text-slate-400 mt-0.5 tabular-nums">
                             {SERVICE_DATA[camp.service]?.name ?? camp.service} · {camp.adCount} ads ·{' '}
                             {camp.format}
+                            {camp.linkedSheetName ? ` · Sheet: ${camp.linkedSheetName}` : ''}
+                            {camp.linkedDriveFileName ? ` · Drive: ${camp.linkedDriveFileName}` : ''}
                           </div>
-                          {(camp.linkedSheetName || camp.linkedDriveFileName) && (
-                            <div className="flex flex-wrap gap-1.5 mt-1.5">
-                              {camp.linkedSheetName && (
-                                <span className="inline-block rounded-md bg-emerald-50 text-emerald-700 px-1.5 py-0.5 text-[11px] font-semibold truncate max-w-[160px]">
-                                  Sheet: {camp.linkedSheetName}
-                                </span>
-                              )}
-                              {camp.linkedDriveFileName && (
-                                <span className="inline-block rounded-md bg-blue-50 text-blue-700 px-1.5 py-0.5 text-[11px] font-semibold truncate max-w-[160px]">
-                                  Drive: {camp.linkedDriveFileName}
-                                </span>
-                              )}
-                            </div>
-                          )}
                         </button>
                         <button
                           type="button"
                           onClick={() => onDeleteCampaign(camp)}
                           aria-label={`Delete campaign ${camp.title}`}
-                          className="p-1.5 rounded-lg text-[#6c6277] hover:text-red-600 hover:bg-red-50 shrink-0 cursor-pointer"
+                          className="p-1.5 rounded-lg text-[#6c6277] dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 shrink-0 cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -624,15 +639,15 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
 
       {/* TAB 2: Google Sheets + Google Picker */}
       {activeTab === 'sheets' && (
-        <div className="space-y-3.5">
-          <div className="flex flex-wrap gap-2">
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2.5">
             <button
               type="button"
               disabled={busyAction !== null}
               onClick={() => {
                 void handleCreateNewSheet();
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
             >
               <FileSpreadsheet className="w-3.5 h-3.5" />
               {busyAction === 'create-sheet' ? 'Creating Sheet…' : 'Export to New Google Sheet'}
@@ -644,26 +659,26 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
               onClick={() => {
                 void handlePickSpreadsheet();
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#d9c9e5] bg-white text-xs font-bold text-[#56249a] hover:bg-[#faf3fc] disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
             >
               <FolderOpen className="w-3.5 h-3.5" />
-              {busyAction === 'pick-sheet' ? 'Opening Picker…' : 'Pick Existing Sheet (Google Picker)'}
+              {busyAction === 'pick-sheet' ? 'Opening Picker…' : 'Pick Existing Sheet'}
             </button>
           </div>
 
           {links.linkedSheetId && (
-            <div className="rounded-xl border border-[#e8e1ef] bg-[#faf3fc] p-3.5 space-y-3">
+            <div className="pt-4 border-t border-[#e8e1ef] dark:border-[#2d2342] space-y-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-wider text-[#7f6e8a]">
+                  <div className="text-xs text-[#6c6277] dark:text-slate-400">
                     Linked Google Sheet
                   </div>
-                  <div className="text-sm font-bold text-[#241436]">
+                  <div className="text-sm font-bold text-[#241436] dark:text-slate-100">
                     {sheetMeta?.title || links.linkedSheetName || links.linkedSheetId}
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                   <a
                     href={
                       sheetMeta?.spreadsheetUrl ||
@@ -671,7 +686,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs font-bold text-[#56249a] underline"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-[#56249a] dark:text-[#c084fc] underline whitespace-nowrap shrink-0"
                   >
                     Open in Sheets
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -683,7 +698,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                       setSheetMeta(null);
                       setSheetPreviewRows(null);
                     }}
-                    className="text-xs text-[#6c6277] hover:text-red-600 cursor-pointer"
+                    className="text-xs text-[#6c6277] dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     Unlink
                   </button>
@@ -695,7 +710,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                   <div className="min-w-[180px]">
                     <label
                       htmlFor="sheet-tab-select"
-                      className="block text-xs font-bold text-[#241436] mb-1"
+                      className="block text-xs font-bold text-[#241436] dark:text-slate-200 mb-1"
                     >
                       Sheet tab
                     </label>
@@ -706,7 +721,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                         setSelectedSheetTab(e.target.value);
                         setSheetPreviewRows(null);
                       }}
-                      className="w-full px-3 py-2 rounded-xl border border-[#d8cde3] bg-white text-xs text-[#241436]"
+                      className="w-full px-3 py-2 rounded-xl border border-[#d8cde3] dark:border-[#392b54] bg-white dark:bg-[#120d1d] text-xs text-[#241436] dark:text-slate-100"
                     >
                       {sheetMeta.tabs.map((tab) => (
                         <option key={tab.sheetId} value={tab.title}>
@@ -722,7 +737,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                     onClick={() => {
                       void handlePreviewSheetTab();
                     }}
-                    className="px-3 py-2 rounded-xl border border-[#d9c9e5] bg-white text-xs font-bold text-[#56249a] hover:bg-white/80 disabled:opacity-50 cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     {busyAction === 'preview-sheet' ? 'Reading…' : 'Preview Rows'}
                   </button>
@@ -731,7 +746,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                     type="button"
                     disabled={busyAction !== null || ads.length === 0}
                     onClick={requestAppendToSheet}
-                    className="px-3 py-2 rounded-xl border border-[#d9c9e5] bg-white text-xs font-bold text-[#56249a] hover:bg-white/80 disabled:opacity-50 cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     Append Ads to Tab
                   </button>
@@ -740,7 +755,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                     type="button"
                     disabled={busyAction !== null || ads.length === 0}
                     onClick={requestOverwriteSheetTab}
-                    className="px-3 py-2 rounded-xl border border-red-200 bg-white text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50 cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl border border-red-200 dark:border-red-900/60 bg-white dark:bg-red-950/30 text-xs font-bold text-red-700 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/50 disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     Overwrite Tab
                   </button>
@@ -748,23 +763,25 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
               )}
 
               {sheetPreviewRows && (
-                <div className="overflow-x-auto bg-white rounded-xl border border-[#e8e1ef] max-h-48">
+                <div className="overflow-x-auto rounded-xl border border-[#e8e1ef] dark:border-[#2d2342] max-h-48">
                   {sheetPreviewRows.length === 0 ? (
-                    <p className="text-xs text-[#6c6277] p-3">No rows found in this tab.</p>
+                    <p className="text-xs text-[#6c6277] dark:text-slate-400 p-3 m-0">
+                      No rows found in this tab.
+                    </p>
                   ) : (
-                    <table className="w-full text-left border-collapse text-xs">
+                    <table className="w-full text-left border-collapse text-xs tabular-nums">
                       <tbody>
                         {sheetPreviewRows.slice(0, 8).map((row, rIdx) => (
                           <tr
                             key={rIdx}
                             className={
                               rIdx === 0
-                                ? 'bg-[#f4e9fa] font-bold text-[#241436]'
-                                : 'border-t border-[#e8e1ef] text-[#241436]'
+                                ? 'bg-[#f4e9fa] dark:bg-[#241b38] font-bold text-[#241436] dark:text-slate-100'
+                                : 'border-t border-[#e8e1ef] dark:border-[#2d2342] text-[#241436] dark:text-slate-200'
                             }
                           >
                             {row.slice(0, 6).map((cell, cIdx) => (
-                              <td key={cIdx} className="px-2.5 py-1.5 max-w-[180px] truncate">
+                              <td key={cIdx} className="px-3 py-2 max-w-[180px] truncate">
                                 {cell}
                               </td>
                             ))}
@@ -782,15 +799,15 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
 
       {/* TAB 3: Google Drive + Google Picker */}
       {activeTab === 'drive' && (
-        <div className="space-y-3.5">
-          <div className="flex flex-wrap gap-2">
+        <div className="space-y-4">
+          <div className="flex flex-wrap gap-2.5">
             <button
               type="button"
               disabled={busyAction !== null || ads.length === 0}
               onClick={() => {
                 void handleUploadExportToDrive('csv');
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
             >
               <UploadCloud className="w-3.5 h-3.5" />
               {busyAction === 'drive-upload-csv' ? 'Saving CSV…' : 'Save CSV to Google Drive'}
@@ -802,7 +819,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
               onClick={() => {
                 void handleUploadExportToDrive('json');
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#d9c9e5] bg-white text-xs font-bold text-[#56249a] hover:bg-[#faf3fc] disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
             >
               <UploadCloud className="w-3.5 h-3.5" />
               {busyAction === 'drive-upload-json' ? 'Saving JSON…' : 'Save JSON to Google Drive'}
@@ -814,30 +831,30 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
               onClick={() => {
                 void handlePickDriveAsset();
               }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#d9c9e5] bg-white text-xs font-bold text-[#56249a] hover:bg-[#faf3fc] disabled:opacity-50 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
             >
               <FolderOpen className="w-3.5 h-3.5" />
-              {busyAction === 'pick-drive' ? 'Opening Picker…' : 'Pick / Upload File (Google Picker)'}
+              {busyAction === 'pick-drive' ? 'Opening Picker…' : 'Pick / Upload File'}
             </button>
           </div>
 
           {links.linkedDriveFileId && (
-            <div className="rounded-xl border border-[#e8e1ef] bg-[#faf3fc] p-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="pt-3 border-t border-[#e8e1ef] dark:border-[#2d2342] flex flex-wrap items-center justify-between gap-2">
               <div className="min-w-0">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-[#7f6e8a]">
+                <div className="text-xs text-[#6c6277] dark:text-slate-400">
                   Attached Google Drive File
                 </div>
-                <div className="text-sm font-bold text-[#241436] truncate">
+                <div className="text-sm font-bold text-[#241436] dark:text-slate-100 truncate">
                   {links.linkedDriveFileName || links.linkedDriveFileId}
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2.5">
                 <a
                   href={`https://drive.google.com/file/d/${links.linkedDriveFileId}/view`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-bold text-[#56249a] underline"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-[#56249a] dark:text-[#c084fc] underline whitespace-nowrap shrink-0"
                 >
                   View in Drive
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -848,7 +865,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                     type="button"
                     disabled={busyAction !== null || ads.length === 0}
                     onClick={requestUpdateLinkedDriveJson}
-                    className="px-2.5 py-1.5 rounded-lg border border-[#d9c9e5] bg-white text-xs font-bold text-[#56249a] hover:bg-white/80 disabled:opacity-50 cursor-pointer"
+                    className="px-3 py-1.5 rounded-lg border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     Overwrite with Current Ads
                   </button>
@@ -858,7 +875,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                   onClick={() =>
                     onLinksChange({ ...links, linkedDriveFileId: '', linkedDriveFileName: '' })
                   }
-                  className="text-xs text-[#6c6277] hover:text-red-600 cursor-pointer"
+                  className="text-xs text-[#6c6277] dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   Detach
                 </button>
@@ -867,16 +884,16 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
           )}
 
           {/* Drive Search & File Browser */}
-          <div className="pt-1">
+          <div className="pt-2 border-t border-[#e8e1ef] dark:border-[#2d2342]">
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[180px]">
-                <Search className="w-3.5 h-3.5 text-[#6c6277] absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-3.5 h-3.5 text-[#6c6277] dark:text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={driveSearch}
                   onChange={(e) => setDriveSearch(e.target.value)}
                   placeholder="Search Google Drive files by name…"
-                  className="w-full pl-8 pr-3 py-2 rounded-xl border border-[#d8cde3] bg-white text-xs text-[#241436]"
+                  className="w-full pl-8 pr-3 py-2 rounded-xl border border-[#d8cde3] dark:border-[#392b54] bg-white dark:bg-[#120d1d] text-xs text-[#241436] dark:text-slate-100 placeholder:text-[#8b7e99] dark:placeholder:text-slate-500"
                 />
               </div>
               <button
@@ -885,7 +902,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                 onClick={() => {
                   void handleRefreshDriveList();
                 }}
-                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#d9c9e5] bg-white text-xs font-bold text-[#56249a] hover:bg-[#faf3fc] disabled:opacity-50 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 {busyAction === 'drive-list' ? 'Loading…' : 'Browse Drive'}
@@ -893,22 +910,26 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
             </div>
 
             {driveLoadedOnce && (
-              <div className="mt-2.5 space-y-1.5 max-h-52 overflow-y-auto">
+              <div className="mt-3 divide-y divide-[#e8e1ef] dark:divide-[#2d2342] max-h-52 overflow-y-auto">
                 {driveFiles.length === 0 ? (
-                  <p className="text-xs text-[#6c6277] py-2">
+                  <p className="text-xs text-[#6c6277] dark:text-slate-400 py-2 m-0">
                     No matching files found in Google Drive.
                   </p>
                 ) : (
                   driveFiles.map((file) => (
                     <div
                       key={file.id}
-                      className="flex items-center justify-between gap-2 rounded-xl border border-[#e8e1ef] px-3 py-2 text-xs"
+                      className="flex items-center justify-between gap-3 py-2.5 text-xs"
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="font-semibold text-[#241436] truncate">{file.name}</div>
-                        <div className="text-[11px] text-[#6c6277] truncate">{file.mimeType}</div>
+                        <div className="font-semibold text-[#241436] dark:text-slate-100 truncate">
+                          {file.name}
+                        </div>
+                        <div className="text-[11px] text-[#6c6277] dark:text-slate-400 truncate">
+                          {file.mimeType}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-2.5 shrink-0">
                         <button
                           type="button"
                           onClick={() => {
@@ -919,7 +940,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                             });
                             onStatus(`Attached "${file.name}" to current campaign.`);
                           }}
-                          className="px-2 py-1 rounded-lg bg-[#f4e9fa] text-[#56249a] font-bold cursor-pointer"
+                          className="px-2.5 py-1 rounded-lg bg-[#f4e9fa] dark:bg-[#241b38] text-[#56249a] dark:text-[#d8b4fe] font-bold whitespace-nowrap shrink-0 cursor-pointer"
                         >
                           Attach
                         </button>
@@ -928,7 +949,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                             href={file.webViewLink}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[#56249a] hover:underline font-semibold"
+                            className="text-[#56249a] dark:text-[#c084fc] hover:underline font-semibold whitespace-nowrap shrink-0"
                           >
                             Open
                           </a>
@@ -937,7 +958,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
                           type="button"
                           onClick={() => requestDeleteDriveFile(file)}
                           aria-label={`Delete ${file.name} from Google Drive`}
-                          className="p-1 rounded-lg text-[#6c6277] hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                          className="p-1 rounded-lg text-[#6c6277] dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -950,6 +971,9 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
           </div>
         </div>
       )}
+
+      {/* TAB 4: Light & Dark Brand Logo Kit */}
+      {activeTab === 'logos' && <BrandLogoKit onStatus={onStatus} />}
     </div>
   );
 };

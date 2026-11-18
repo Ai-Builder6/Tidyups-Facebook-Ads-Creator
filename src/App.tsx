@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { User } from 'firebase/auth';
-import { Check, Copy, Download, Edit3, LogOut, Sparkles } from 'lucide-react';
+import { Check, Copy, Download, Edit3, LogOut, Moon, Sparkles, Sun } from 'lucide-react';
 import { ConfirmModal } from './components/ConfirmModal';
 import { GoogleSignInButton } from './components/GoogleSignInButton';
-import { WorkspaceHub } from './components/WorkspaceHub';
+import { ThemeMode, TidyupsLogoLockup } from './components/TidyupsLogo';
+import { HubTab, WorkspaceHub } from './components/WorkspaceHub';
 import { clearAccessToken, googleSignIn, initAuth, logout } from './firebase';
 import {
   deleteCampaignFromFirestore,
@@ -36,6 +37,22 @@ import {
 } from './utils/adGenerator';
 
 const LOCAL_SETTINGS_KEY = 'tidyups-settings';
+const LOCAL_THEME_KEY = 'tidyups-theme';
+
+function loadInitialTheme(): ThemeMode {
+  try {
+    const saved = localStorage.getItem(LOCAL_THEME_KEY);
+    if (saved === 'dark' || saved === 'light') {
+      return saved;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+  } catch {
+    // ignore storage access errors
+  }
+  return 'light';
+}
 
 function loadInitialSettings(): CampaignSettings {
   try {
@@ -43,7 +60,10 @@ function loadInitialSettings(): CampaignSettings {
     if (!raw) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(raw) as Partial<CampaignSettings>;
     return {
-      title: typeof parsed.title === 'string' && parsed.title.trim() ? parsed.title : DEFAULT_SETTINGS.title,
+      title:
+        typeof parsed.title === 'string' && parsed.title.trim()
+          ? parsed.title
+          : DEFAULT_SETTINGS.title,
       service: (parsed.service as ServiceKey) || DEFAULT_SETTINGS.service,
       tone: (parsed.tone as ToneKey) || DEFAULT_SETTINGS.tone,
       count: Number(parsed.count) || DEFAULT_SETTINGS.count,
@@ -60,6 +80,8 @@ function loadInitialSettings(): CampaignSettings {
 }
 
 export const App: React.FC = () => {
+  const [theme, setTheme] = useState<ThemeMode>(loadInitialTheme);
+  const [hubTab, setHubTab] = useState<HubTab>('cloud');
   const [settings, setSettings] = useState<CampaignSettings>(loadInitialSettings);
   const [ads, setAds] = useState<GeneratedAd[]>([]);
   const [editingAdIndex, setEditingAdIndex] = useState<number | null>(null);
@@ -84,6 +106,16 @@ export const App: React.FC = () => {
 
   // Confirmation modal state
   const [confirmation, setConfirmation] = useState<PendingConfirmation | null>(null);
+
+  // Sync <html> .dark class and persist theme choice
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    try {
+      localStorage.setItem(LOCAL_THEME_KEY, theme);
+    } catch {
+      // ignore storage errors
+    }
+  }, [theme]);
 
   useEffect(() => {
     const unsub = initAuth((nextUser, nextToken) => {
@@ -301,30 +333,54 @@ export const App: React.FC = () => {
     );
   };
 
-  return (
-    <div className="min-h-screen flex flex-col bg-[#f7f5fb] text-[#241436]">
-      {/* Brand Header */}
-      <header className="bg-gradient-to-r from-[#452088] via-[#8f36ae] to-[#ec5aa8] text-white shadow-[0_8px_20px_#3012471a] print:hidden">
-        <div className="max-w-[1200px] mx-auto px-[18px] py-[24px] flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div
-              aria-hidden="true"
-              className="bg-white rounded-2xl w-[52px] h-[52px] grid place-items-center text-[29px] shadow-xs shrink-0"
-            >
-              🐰
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-[32px] font-extrabold tracking-tight leading-tight m-0">
-                Tidyups Ads Creator
-              </h1>
-              <div className="text-sm text-white/90 mt-1">
-                Facebook + Instagram campaign builder · Edmonton, Alberta
-              </div>
-            </div>
-          </div>
+  const inputClass =
+    'w-full p-3 border border-[#d8cde3] dark:border-[#35294f] rounded-xl bg-white dark:bg-[#120d1d] text-sm text-[#241436] dark:text-slate-100 placeholder:text-[#8b7e99] dark:placeholder:text-slate-500 focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2';
 
-          {/* Header Auth Bar */}
-          <div className="flex items-center gap-2.5">
+  return (
+    <div className="min-h-screen flex flex-col bg-[#f8f7fc] dark:bg-[#0f0b18] text-[#241436] dark:text-slate-100 transition-colors duration-150">
+      {/* Clean 3-Zone Top Bar */}
+      <header className="bg-white dark:bg-[#140e21] border-b border-[#e8e1ef] dark:border-[#2a203f] print:hidden">
+        <div className="max-w-[1200px] mx-auto px-5 py-3.5 flex items-center justify-between gap-8">
+          {/* Zone 1: Adaptive Light/Dark Brand Lockup */}
+          <a
+            href="#builder"
+            className="focus-visible:outline-3 focus-visible:outline-[#e987cc] rounded-xl shrink-0"
+          >
+            <TidyupsLogoLockup variant={theme} />
+          </a>
+
+          {/* Zone 2: Clean Single-Line Nav Links */}
+          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#6c6277] dark:text-slate-300">
+            <a
+              href="#builder"
+              className="hover:text-[#56249a] dark:hover:text-white underline-offset-4 hover:underline transition-colors whitespace-nowrap shrink-0"
+            >
+              Builder
+            </a>
+            <a
+              href="#workspace-hub"
+              onClick={() => setHubTab('cloud')}
+              className="hover:text-[#56249a] dark:hover:text-white underline-offset-4 hover:underline transition-colors whitespace-nowrap shrink-0"
+            >
+              Cloud &amp; Sheets
+            </a>
+            <a
+              href="#workspace-hub"
+              onClick={() => setHubTab('logos')}
+              className="hover:text-[#56249a] dark:hover:text-white underline-offset-4 hover:underline transition-colors whitespace-nowrap shrink-0"
+            >
+              Brand Logos
+            </a>
+            <a
+              href="#ad-results"
+              className="hover:text-[#56249a] dark:hover:text-white underline-offset-4 hover:underline transition-colors whitespace-nowrap shrink-0"
+            >
+              Ad Variations
+            </a>
+          </nav>
+
+          {/* Zone 3: Single Auth Action */}
+          <div className="flex items-center shrink-0">
             {!user ? (
               <GoogleSignInButton
                 onClick={() => {
@@ -334,45 +390,97 @@ export const App: React.FC = () => {
                 label="Sign in with Google"
               />
             ) : (
-              <div className="flex items-center gap-2 bg-white/15 backdrop-blur-xs border border-white/25 rounded-full pl-3 pr-2 py-1.5">
-                <div className="text-xs leading-tight">
-                  <div className="font-bold truncate max-w-[180px]">
-                    {user.displayName || user.email}
-                  </div>
-                  <div className="text-[11px] text-white/80">
-                    {accessToken ? 'Drive, Sheets & Picker ready' : 'Signed in (click Workspace to connect Drive)'}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleSignOut();
-                  }}
-                  title="Sign out"
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/20 hover:bg-white/30 text-xs font-semibold cursor-pointer"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  Sign out
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSignOut();
+                }}
+                title={`Signed in as ${user.displayName || user.email || 'User'}`}
+                className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-[#faf3fc] dark:bg-[#211934] hover:bg-[#f4e9fa] dark:hover:bg-[#2a2042] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Sign out
+              </button>
             )}
           </div>
         </div>
       </header>
 
-      {/* Main Layout */}
-      <main className="max-w-[1200px] w-full mx-auto my-7 px-[18px] grid grid-cols-1 lg:grid-cols-[350px_minmax(0,1fr)] gap-[23px] flex-1 print:block">
+      {/* Workspace Subheader + Light / Dark Theme Switch */}
+      <div className="max-w-[1200px] w-full mx-auto px-5 pt-6 pb-1 flex flex-wrap items-center justify-between gap-4 print:hidden">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#241436] dark:text-white m-0">
+            Tidyups Facebook &amp; Instagram Ads Creator
+          </h1>
+          <p className="text-xs sm:text-sm text-[#6c6277] dark:text-slate-400 mt-1 mb-0">
+            Edmonton, Alberta · Campaign copy, creative prompts, video scripts &amp; brand assets
+          </p>
+        </div>
+
+        {/* Interactive Light / Dark Theme Segmented Control */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setHubTab('logos')}
+            className="px-3 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#181226] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#221936] whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            View Light &amp; Dark Logos
+          </button>
+
+          <div
+            role="group"
+            aria-label="Color theme toggle"
+            className="inline-flex items-center p-1 rounded-xl bg-[#ede6f6] dark:bg-[#1a1329] border border-[#dfd3ee] dark:border-[#2d2342]"
+          >
+            <button
+              type="button"
+              onClick={() => setTheme('light')}
+              aria-pressed={theme === 'light'}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+                theme === 'light'
+                  ? 'bg-white text-[#241436] shadow-xs'
+                  : 'text-[#6c6277] dark:text-slate-400 hover:text-[#241436] dark:hover:text-slate-200'
+              }`}
+            >
+              <Sun className="w-3.5 h-3.5" />
+              Light
+            </button>
+            <button
+              type="button"
+              onClick={() => setTheme('dark')}
+              aria-pressed={theme === 'dark'}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+                theme === 'dark'
+                  ? 'bg-[#2c2046] text-white shadow-xs'
+                  : 'text-[#6c6277] dark:text-slate-400 hover:text-[#241436] dark:hover:text-slate-200'
+              }`}
+            >
+              <Moon className="w-3.5 h-3.5" />
+              Dark
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Main 2-Column Workspace */}
+      <main className="max-w-[1200px] w-full mx-auto my-6 px-5 grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-6 flex-1 print:block">
         {/* Left Column: Campaign Settings */}
         <section
+          id="builder"
           aria-label="Campaign settings"
-          className="bg-white border border-[#e8e1ef] rounded-[18px] p-[23px] shadow-[0_5px_22px_#3318490b] self-start print:hidden"
+          className="bg-white dark:bg-[#181226] border border-[#e8e1ef] dark:border-[#2d2342] rounded-2xl p-6 self-start print:hidden"
         >
-          <h2 className="text-lg font-bold mb-3">Build your campaign</h2>
-          <div className="p-3 bg-[#faf3fc] rounded-xl border border-[#f0dff1] text-[#644475] text-[13px] leading-snug">
-            Conversion-focused ad copy, creative prompts, and 10s video scripts synced with Firebase, Google Sheets, and Google Drive.
-          </div>
+          <h2 className="text-lg font-bold text-[#241436] dark:text-slate-100 mb-2">
+            Build your campaign
+          </h2>
+          <p className="text-xs text-[#6c6277] dark:text-slate-400 leading-relaxed mb-4">
+            Configure service type, advertising angle, and offer details to generate Meta-ready ad variations.
+          </p>
 
-          <label htmlFor="campaign-title" className="block text-[13px] font-bold mt-4 mb-1.5">
+          <label
+            htmlFor="campaign-title"
+            className="block text-xs font-bold text-[#241436] dark:text-slate-200 mt-3.5 mb-1.5"
+          >
             Campaign name
           </label>
           <input
@@ -381,17 +489,20 @@ export const App: React.FC = () => {
             maxLength={BLUEPRINT_LIMITS.titleMax}
             onChange={(e) => updateSetting('title', e.target.value)}
             placeholder="e.g., Spring Move-Out Campaign"
-            className="w-full p-3 border border-[#d8cde3] rounded-[11px] bg-white text-sm focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2"
+            className={inputClass}
           />
 
-          <label htmlFor="service" className="block text-[13px] font-bold mt-3.5 mb-1.5">
+          <label
+            htmlFor="service"
+            className="block text-xs font-bold text-[#241436] dark:text-slate-200 mt-3.5 mb-1.5"
+          >
             Cleaning service
           </label>
           <select
             id="service"
             value={settings.service}
             onChange={(e) => updateSetting('service', e.target.value as ServiceKey)}
-            className="w-full p-3 border border-[#d8cde3] rounded-[11px] bg-white text-sm focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2"
+            className={inputClass}
           >
             {(Object.keys(SERVICE_DATA) as ServiceKey[]).map((key) => (
               <option key={key} value={key}>
@@ -400,14 +511,17 @@ export const App: React.FC = () => {
             ))}
           </select>
 
-          <label htmlFor="tone" className="block text-[13px] font-bold mt-3.5 mb-1.5">
+          <label
+            htmlFor="tone"
+            className="block text-xs font-bold text-[#241436] dark:text-slate-200 mt-3.5 mb-1.5"
+          >
             Advertising angle
           </label>
           <select
             id="tone"
             value={settings.tone}
             onChange={(e) => updateSetting('tone', e.target.value as ToneKey)}
-            className="w-full p-3 border border-[#d8cde3] rounded-[11px] bg-white text-sm focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2"
+            className={inputClass}
           >
             {(Object.keys(TONE_LABELS) as ToneKey[]).map((key) => (
               <option key={key} value={key}>
@@ -416,16 +530,19 @@ export const App: React.FC = () => {
             ))}
           </select>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label htmlFor="count" className="block text-[13px] font-bold mt-3.5 mb-1.5">
+              <label
+                htmlFor="count"
+                className="block text-xs font-bold text-[#241436] dark:text-slate-200 mt-3.5 mb-1.5"
+              >
                 Variations
               </label>
               <select
                 id="count"
                 value={settings.count}
                 onChange={(e) => updateSetting('count', Number(e.target.value))}
-                className="w-full p-3 border border-[#d8cde3] rounded-[11px] bg-white text-sm focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2"
+                className={`${inputClass} tabular-nums`}
               >
                 <option value={3}>3</option>
                 <option value={5}>5</option>
@@ -433,14 +550,17 @@ export const App: React.FC = () => {
               </select>
             </div>
             <div>
-              <label htmlFor="format" className="block text-[13px] font-bold mt-3.5 mb-1.5">
+              <label
+                htmlFor="format"
+                className="block text-xs font-bold text-[#241436] dark:text-slate-200 mt-3.5 mb-1.5"
+              >
                 Creative format
               </label>
               <select
                 id="format"
                 value={settings.format}
                 onChange={(e) => updateSetting('format', e.target.value as CreativeFormat)}
-                className="w-full p-3 border border-[#d8cde3] rounded-[11px] bg-white text-sm focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2"
+                className={`${inputClass} tabular-nums`}
               >
                 {(Object.keys(FORMAT_LABELS) as CreativeFormat[]).map((fmt) => (
                   <option key={fmt} value={fmt}>
@@ -451,7 +571,10 @@ export const App: React.FC = () => {
             </div>
           </div>
 
-          <label htmlFor="offer" className="block text-[13px] font-bold mt-3.5 mb-1.5">
+          <label
+            htmlFor="offer"
+            className="block text-xs font-bold text-[#241436] dark:text-slate-200 mt-3.5 mb-1.5"
+          >
             Special offer (optional)
           </label>
           <input
@@ -460,10 +583,13 @@ export const App: React.FC = () => {
             maxLength={BLUEPRINT_LIMITS.offerMax}
             onChange={(e) => updateSetting('offer', e.target.value)}
             placeholder="e.g., 10% off first deep clean"
-            className="w-full p-3 border border-[#d8cde3] rounded-[11px] bg-white text-sm focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2"
+            className={inputClass}
           />
 
-          <label htmlFor="area" className="block text-[13px] font-bold mt-3.5 mb-1.5">
+          <label
+            htmlFor="area"
+            className="block text-xs font-bold text-[#241436] dark:text-slate-200 mt-3.5 mb-1.5"
+          >
             Target area
           </label>
           <input
@@ -471,10 +597,13 @@ export const App: React.FC = () => {
             value={settings.area}
             maxLength={BLUEPRINT_LIMITS.areaMax}
             onChange={(e) => updateSetting('area', e.target.value)}
-            className="w-full p-3 border border-[#d8cde3] rounded-[11px] bg-white text-sm focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2"
+            className={inputClass}
           />
 
-          <label htmlFor="booking" className="block text-[13px] font-bold mt-3.5 mb-1.5">
+          <label
+            htmlFor="booking"
+            className="block text-xs font-bold text-[#241436] dark:text-slate-200 mt-3.5 mb-1.5"
+          >
             Booking page
           </label>
           <input
@@ -482,10 +611,13 @@ export const App: React.FC = () => {
             value={settings.booking}
             maxLength={BLUEPRINT_LIMITS.bookingUrlMax}
             onChange={(e) => updateSetting('booking', e.target.value)}
-            className="w-full p-3 border border-[#d8cde3] rounded-[11px] bg-white text-sm focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2"
+            className={inputClass}
           />
 
-          <label htmlFor="phone" className="block text-[13px] font-bold mt-3.5 mb-1.5">
+          <label
+            htmlFor="phone"
+            className="block text-xs font-bold text-[#241436] dark:text-slate-200 mt-3.5 mb-1.5"
+          >
             Phone
           </label>
           <input
@@ -493,10 +625,13 @@ export const App: React.FC = () => {
             value={settings.phone}
             maxLength={BLUEPRINT_LIMITS.phoneMax}
             onChange={(e) => updateSetting('phone', e.target.value)}
-            className="w-full p-3 border border-[#d8cde3] rounded-[11px] bg-white text-sm focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2"
+            className={`${inputClass} tabular-nums`}
           />
 
-          <label htmlFor="notes" className="block text-[13px] font-bold mt-3.5 mb-1.5">
+          <label
+            htmlFor="notes"
+            className="block text-xs font-bold text-[#241436] dark:text-slate-200 mt-3.5 mb-1.5"
+          >
             Additional instructions
           </label>
           <textarea
@@ -505,26 +640,28 @@ export const App: React.FC = () => {
             maxLength={BLUEPRINT_LIMITS.notesMax}
             onChange={(e) => updateSetting('notes', e.target.value)}
             placeholder="Mention pet-friendly homes, move-out deadlines, etc."
-            className="w-full p-3 border border-[#d8cde3] rounded-[11px] bg-white text-sm min-h-[76px] resize-y focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2"
+            className={`${inputClass} min-h-[76px] resize-y`}
           />
 
           <button
             type="button"
             onClick={handleGenerate}
-            className="w-full mt-4 py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] text-white font-extrabold text-sm inline-flex items-center justify-center gap-2 hover:opacity-95 focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2 cursor-pointer"
+            className="w-full mt-5 py-3.5 px-4 rounded-xl bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] text-white font-extrabold text-sm inline-flex items-center justify-center gap-2 hover:opacity-95 focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2 whitespace-nowrap shrink-0 cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
             Generate Facebook Ads
           </button>
 
-          <p className="text-xs text-[#6c6277] mt-3 mb-0 leading-relaxed">
-            Settings auto-save locally in this browser, and signed-in users can save campaigns to Firebase or Google Workspace.
+          <p className="text-xs text-[#6c6277] dark:text-slate-400 mt-3 mb-0 leading-relaxed">
+            Settings auto-save locally in this browser, and signed-in users can sync campaigns to Firebase or Google Workspace.
           </p>
         </section>
 
         {/* Right Column: Workspace Hub + Campaign Export + Generated Ads */}
         <section className="min-w-0">
           <WorkspaceHub
+            activeTab={hubTab}
+            onTabChange={setHubTab}
             user={user}
             accessToken={accessToken}
             isSigningIn={isSigningIn}
@@ -559,9 +696,11 @@ export const App: React.FC = () => {
           />
 
           {/* Local Export & Status Bar */}
-          <div className="bg-white border border-[#e8e1ef] rounded-[18px] p-[22px] shadow-[0_5px_22px_#3318490b] mb-5 print:hidden">
-            <h2 className="text-lg font-bold mb-1.5">Campaign workspace</h2>
-            <p className="text-sm text-[#6c6277] m-0">
+          <div className="bg-white dark:bg-[#181226] border border-[#e8e1ef] dark:border-[#2d2342] rounded-2xl p-6 mb-6 print:hidden">
+            <h2 className="text-lg font-bold text-[#241436] dark:text-slate-100 mb-1.5">
+              Campaign workspace
+            </h2>
+            <p className="text-sm text-[#6c6277] dark:text-slate-300 m-0">
               Generate conversion-focused headlines, primary text, descriptions, image prompts, and short-video scripts. Edit any ad inline, copy a single variation, or export the full set.
             </p>
 
@@ -580,7 +719,7 @@ export const App: React.FC = () => {
                   );
                   setStatus('Downloaded CSV file.');
                 }}
-                className="inline-flex items-center gap-1.5 bg-white border border-[#d9c9e5] text-[#56249a] font-bold text-xs px-3.5 py-2.5 rounded-[10px] hover:bg-[#faf3fc] cursor-pointer"
+                className="inline-flex items-center gap-1.5 bg-white dark:bg-[#211934] border border-[#d9c9e5] dark:border-[#392b54] text-[#56249a] dark:text-[#d8b4fe] font-bold text-xs px-3.5 py-2.5 rounded-xl hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
                 Download CSV
@@ -600,7 +739,7 @@ export const App: React.FC = () => {
                   );
                   setStatus('Downloaded JSON file.');
                 }}
-                className="inline-flex items-center gap-1.5 bg-white border border-[#d9c9e5] text-[#56249a] font-bold text-xs px-3.5 py-2.5 rounded-[10px] hover:bg-[#faf3fc] cursor-pointer"
+                className="inline-flex items-center gap-1.5 bg-white dark:bg-[#211934] border border-[#d9c9e5] dark:border-[#392b54] text-[#56249a] dark:text-[#d8b4fe] font-bold text-xs px-3.5 py-2.5 rounded-xl hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
                 Download JSON
@@ -615,7 +754,7 @@ export const App: React.FC = () => {
                   }
                   void copyText(formatAllAdsPlainText(ads), 'all');
                 }}
-                className="inline-flex items-center gap-1.5 bg-white border border-[#d9c9e5] text-[#56249a] font-bold text-xs px-3.5 py-2.5 rounded-[10px] hover:bg-[#faf3fc] cursor-pointer"
+                className="inline-flex items-center gap-1.5 bg-white dark:bg-[#211934] border border-[#d9c9e5] dark:border-[#392b54] text-[#56249a] dark:text-[#d8b4fe] font-bold text-xs px-3.5 py-2.5 rounded-xl hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] whitespace-nowrap shrink-0 cursor-pointer"
               >
                 {copiedBadge === 'all' ? (
                   <Check className="w-3.5 h-3.5" />
@@ -626,16 +765,29 @@ export const App: React.FC = () => {
               </button>
             </div>
 
-            <p aria-live="polite" className="text-xs font-medium text-[#56249a] m-0">
+            <p
+              aria-live="polite"
+              className="text-xs font-semibold text-[#56249a] dark:text-[#c084fc] m-0"
+            >
               {status}
             </p>
           </div>
 
           {/* Results List */}
-          <div>
+          <div id="ad-results">
             {ads.length === 0 ? (
-              <div className="py-10 px-6 text-center text-[#6c6277] border-2 border-dashed border-[#e5d6ed] rounded-2xl bg-white/60 text-sm">
-                Select your options and click <b>Generate Facebook Ads</b> (or load a saved cloud campaign) to start.
+              <div className="py-12 px-6 text-center text-[#6c6277] dark:text-slate-400 border border-dashed border-[#d9c9e5] dark:border-[#35294f] rounded-2xl bg-white dark:bg-[#181226] text-sm">
+                <p className="m-0 mb-3">
+                  Select your campaign options and generate variations, or load a saved cloud campaign.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] hover:opacity-95 whitespace-nowrap shrink-0 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  Generate Sample Campaign
+                </button>
               </div>
             ) : (
               ads.map((ad, idx) => {
@@ -643,20 +795,19 @@ export const App: React.FC = () => {
                 return (
                   <article
                     key={ad.id || idx}
-                    className="bg-white border border-[#e8e1ef] rounded-[18px] p-[22px] shadow-[0_5px_22px_#3318490b] mb-4 break-inside-avoid"
+                    className="bg-white dark:bg-[#181226] border border-[#e8e1ef] dark:border-[#2d2342] rounded-2xl p-6 mb-4 break-inside-avoid"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <span className="inline-block rounded-full px-2.5 py-1 text-[#56249a] bg-[#f4e9fa] text-[11px] font-extrabold">
-                            Ad {ad.number}
+                        {/* Unboxed Clean Metadata Line */}
+                        <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[#6c6277] dark:text-slate-400 tabular-nums">
+                          <span className="text-[#56249a] dark:text-[#c084fc] font-bold">
+                            0{ad.number}. Variation
                           </span>
-                          <span className="inline-block rounded-full px-2.5 py-1 text-[#56249a] bg-[#f4e9fa] text-[11px] font-extrabold">
-                            {ad.format}
-                          </span>
-                          <span className="inline-block rounded-full px-2.5 py-1 text-[#644475] bg-[#faf3fc] text-[11px] font-semibold">
-                            {ad.service}
-                          </span>
+                          <span aria-hidden="true">·</span>
+                          <span>{ad.format}</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{ad.service}</span>
                         </div>
 
                         {isEditing ? (
@@ -667,27 +818,29 @@ export const App: React.FC = () => {
                             onChange={(e) =>
                               updateSingleAdField(idx, 'headline', e.target.value)
                             }
-                            className="mt-2.5 w-full px-3 py-2 rounded-xl border border-[#d8cde3] text-base font-bold text-[#241436]"
+                            className={`mt-2 ${inputClass} font-bold text-base`}
                           />
                         ) : (
-                          <h3 className="text-lg font-bold mt-2.5 mb-0">{ad.headline}</h3>
+                          <h3 className="text-lg font-bold text-[#241436] dark:text-white mt-1.5 mb-0">
+                            {ad.headline}
+                          </h3>
                         )}
                       </div>
 
                       <button
                         type="button"
                         onClick={() => setEditingAdIndex(isEditing ? null : idx)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#d9c9e5] text-xs font-bold text-[#56249a] hover:bg-[#faf3fc] print:hidden cursor-pointer"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] print:hidden whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
                         {isEditing ? 'Done' : 'Edit'}
                       </button>
                     </div>
 
-                    <div className="mt-3.5">
-                      <b className="block text-xs tracking-wider uppercase text-[#7f6e8a] mb-1">
+                    <div className="mt-4 pt-3.5 border-t border-[#f0eaf7] dark:border-[#251c38]">
+                      <div className="text-xs font-bold text-[#7f6e8a] dark:text-slate-400 mb-1">
                         Primary text
-                      </b>
+                      </div>
                       {isEditing ? (
                         <textarea
                           value={ad.primary_text}
@@ -695,19 +848,19 @@ export const App: React.FC = () => {
                           onChange={(e) =>
                             updateSingleAdField(idx, 'primary_text', e.target.value)
                           }
-                          className="w-full p-2.5 rounded-xl border border-[#d8cde3] text-sm min-h-[110px]"
+                          className={`${inputClass} min-h-[110px]`}
                         />
                       ) : (
-                        <div className="whitespace-pre-wrap leading-relaxed text-sm">
+                        <div className="whitespace-pre-wrap leading-relaxed text-sm text-[#241436] dark:text-slate-200">
                           {ad.primary_text}
                         </div>
                       )}
                     </div>
 
                     <div className="mt-3.5">
-                      <b className="block text-xs tracking-wider uppercase text-[#7f6e8a] mb-1">
+                      <div className="text-xs font-bold text-[#7f6e8a] dark:text-slate-400 mb-1">
                         Description
-                      </b>
+                      </div>
                       {isEditing ? (
                         <input
                           type="text"
@@ -716,28 +869,28 @@ export const App: React.FC = () => {
                           onChange={(e) =>
                             updateSingleAdField(idx, 'description', e.target.value)
                           }
-                          className="w-full p-2.5 rounded-xl border border-[#d8cde3] text-sm"
+                          className={inputClass}
                         />
                       ) : (
-                        <div className="whitespace-pre-wrap leading-relaxed text-sm">
+                        <div className="whitespace-pre-wrap leading-relaxed text-sm text-[#241436] dark:text-slate-200">
                           {ad.description}
                         </div>
                       )}
                     </div>
 
                     <div className="mt-3.5">
-                      <b className="block text-xs tracking-wider uppercase text-[#7f6e8a] mb-1">
+                      <div className="text-xs font-bold text-[#7f6e8a] dark:text-slate-400 mb-1">
                         Destination
-                      </b>
-                      <div className="whitespace-pre-wrap leading-relaxed text-sm break-all">
+                      </div>
+                      <div className="whitespace-pre-wrap leading-relaxed text-sm text-[#56249a] dark:text-[#c084fc] break-all">
                         {ad.destination_url}
                       </div>
                     </div>
 
                     <div className="mt-3.5">
-                      <b className="block text-xs tracking-wider uppercase text-[#7f6e8a] mb-1">
+                      <div className="text-xs font-bold text-[#7f6e8a] dark:text-slate-400 mb-1">
                         Image generation prompt
-                      </b>
+                      </div>
                       {isEditing ? (
                         <textarea
                           value={ad.image_prompt}
@@ -745,19 +898,19 @@ export const App: React.FC = () => {
                           onChange={(e) =>
                             updateSingleAdField(idx, 'image_prompt', e.target.value)
                           }
-                          className="w-full p-2.5 rounded-xl border border-[#d8cde3] text-sm min-h-[90px]"
+                          className={`${inputClass} min-h-[90px]`}
                         />
                       ) : (
-                        <div className="whitespace-pre-wrap leading-relaxed text-sm">
+                        <div className="whitespace-pre-wrap leading-relaxed text-sm text-[#241436] dark:text-slate-200">
                           {ad.image_prompt}
                         </div>
                       )}
                     </div>
 
                     <div className="mt-3.5">
-                      <b className="block text-xs tracking-wider uppercase text-[#7f6e8a] mb-1">
+                      <div className="text-xs font-bold text-[#7f6e8a] dark:text-slate-400 mb-1">
                         10-second video script
-                      </b>
+                      </div>
                       {isEditing ? (
                         <textarea
                           value={ad.video_script}
@@ -765,16 +918,16 @@ export const App: React.FC = () => {
                           onChange={(e) =>
                             updateSingleAdField(idx, 'video_script', e.target.value)
                           }
-                          className="w-full p-2.5 rounded-xl border border-[#d8cde3] text-sm min-h-[100px]"
+                          className={`${inputClass} min-h-[100px]`}
                         />
                       ) : (
-                        <div className="whitespace-pre-wrap leading-relaxed text-sm">
+                        <div className="whitespace-pre-wrap leading-relaxed text-sm text-[#241436] dark:text-slate-200">
                           {ad.video_script}
                         </div>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap gap-2 mt-4 print:hidden">
+                    <div className="flex flex-wrap gap-2 mt-4 pt-3.5 border-t border-[#f0eaf7] dark:border-[#251c38] print:hidden">
                       <button
                         type="button"
                         onClick={() =>
@@ -783,7 +936,7 @@ export const App: React.FC = () => {
                             `copy-text-${idx}`
                           )
                         }
-                        className="inline-flex items-center gap-1.5 bg-white border border-[#d9c9e5] text-[#56249a] font-bold text-xs px-3 py-2 rounded-[10px] hover:bg-[#faf3fc] cursor-pointer"
+                        className="inline-flex items-center gap-1.5 bg-white dark:bg-[#211934] border border-[#d9c9e5] dark:border-[#392b54] text-[#56249a] dark:text-[#d8b4fe] font-bold text-xs px-3.5 py-2 rounded-xl hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         {copiedBadge === `copy-text-${idx}` ? (
                           <Check className="w-3.5 h-3.5" />
@@ -798,7 +951,7 @@ export const App: React.FC = () => {
                         onClick={() =>
                           void copyText(ad.image_prompt, `copy-prompt-${idx}`)
                         }
-                        className="inline-flex items-center gap-1.5 bg-white border border-[#d9c9e5] text-[#56249a] font-bold text-xs px-3 py-2 rounded-[10px] hover:bg-[#faf3fc] cursor-pointer"
+                        className="inline-flex items-center gap-1.5 bg-white dark:bg-[#211934] border border-[#d9c9e5] dark:border-[#392b54] text-[#56249a] dark:text-[#d8b4fe] font-bold text-xs px-3.5 py-2 rounded-xl hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         {copiedBadge === `copy-prompt-${idx}` ? (
                           <Check className="w-3.5 h-3.5" />
@@ -813,7 +966,7 @@ export const App: React.FC = () => {
                         onClick={() =>
                           void copyText(ad.video_script, `copy-script-${idx}`)
                         }
-                        className="inline-flex items-center gap-1.5 bg-white border border-[#d9c9e5] text-[#56249a] font-bold text-xs px-3 py-2 rounded-[10px] hover:bg-[#faf3fc] cursor-pointer"
+                        className="inline-flex items-center gap-1.5 bg-white dark:bg-[#211934] border border-[#d9c9e5] dark:border-[#392b54] text-[#56249a] dark:text-[#d8b4fe] font-bold text-xs px-3.5 py-2 rounded-xl hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] whitespace-nowrap shrink-0 cursor-pointer"
                       >
                         {copiedBadge === `copy-script-${idx}` ? (
                           <Check className="w-3.5 h-3.5" />
@@ -831,13 +984,13 @@ export const App: React.FC = () => {
         </section>
       </main>
 
-      <footer className="max-w-[1200px] w-full mx-auto px-[18px] pt-2.5 pb-7 text-[#766684] text-xs leading-relaxed print:hidden">
+      <footer className="max-w-[1200px] w-full mx-auto px-5 pt-3 pb-8 text-[#766684] dark:text-slate-400 text-xs leading-relaxed tabular-nums print:hidden">
         Tidyups Cleaning Service Inc. · Edmonton, AB · 780-718-5092 ·{' '}
         <a
           href="https://tidyupscleaning.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="underline hover:text-[#56249a]"
+          className="underline hover:text-[#56249a] dark:hover:text-[#c084fc]"
         >
           tidyupscleaning.com
         </a>
