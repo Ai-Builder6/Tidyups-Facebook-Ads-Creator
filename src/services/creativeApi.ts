@@ -33,6 +33,17 @@ export interface GenerateVideoResult {
   modelUsed: string;
 }
 
+async function parseApiJson<T>(res: Response, fallbackLabel: string): Promise<T> {
+  const rawText = await res.text();
+  try {
+    return JSON.parse(rawText) as T;
+  } catch {
+    throw new Error(
+      rawText.trim().slice(0, 240) || `${fallbackLabel} failed (HTTP ${res.status}).`
+    );
+  }
+}
+
 export async function generateStudioImage(
   params: GenerateImageParams
 ): Promise<GenerateImageResult> {
@@ -41,7 +52,10 @@ export async function generateStudioImage(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  const payload = (await res.json()) as Partial<GenerateImageResult> & { error?: string };
+  const payload = await parseApiJson<Partial<GenerateImageResult> & { error?: string }>(
+    res,
+    'Image generation'
+  );
   if (!res.ok || !payload.imageDataUrl) {
     throw new Error(payload.error || `Image generation failed (HTTP ${res.status}).`);
   }
@@ -61,15 +75,47 @@ export async function generateStudioVideo(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
-  const payload = (await res.json()) as Partial<GenerateVideoResult> & { error?: string };
-  if (!res.ok || !payload.videoDataUrl) {
-    throw new Error(payload.error || `Video generation failed (HTTP ${res.status}).`);
+  const initialPayload = await parseApiJson<
+    Partial<GenerateVideoResult> & { status?: string; jobId?: string; error?: string }
+  >(res, 'Video generation');
+
+  if (!res.ok) {
+    throw new Error(initialPayload.error || `Video generation failed (HTTP ${res.status}).`);
   }
+
+  let finalPayload = initialPayload;
+
+  if (initialPayload.status === 'pending' && initialPayload.jobId) {
+    const jobId = initialPayload.jobId;
+    const deadline = Date.now() + 310000;
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 2500));
+      const pollRes = await fetch(`/api/gemini/video/${encodeURIComponent(jobId)}`);
+      const pollPayload = await parseApiJson<
+        Partial<GenerateVideoResult> & { status?: string; error?: string }
+      >(pollRes, 'Video status check');
+
+      if (!pollRes.ok || pollPayload.status === 'failed') {
+        throw new Error(pollPayload.error || `Video generation failed (HTTP ${pollRes.status}).`);
+      }
+      if (pollPayload.status === 'completed' || pollPayload.videoDataUrl) {
+        finalPayload = pollPayload;
+        break;
+      }
+    }
+  }
+
+  if (!finalPayload.videoDataUrl) {
+    throw new Error(
+      finalPayload.error || 'Video generation timed out before a clip was returned.'
+    );
+  }
+
   return {
-    videoDataUrl: payload.videoDataUrl,
-    mimeType: payload.mimeType || 'video/mp4',
-    interactionId: payload.interactionId || '',
-    modelUsed: payload.modelUsed || 'gemini-omni-1.2-flash',
+    videoDataUrl: finalPayload.videoDataUrl,
+    mimeType: finalPayload.mimeType || 'video/mp4',
+    interactionId: finalPayload.interactionId || '',
+    modelUsed: finalPayload.modelUsed || 'gemini-omni-1.2-flash',
   };
 }
 

@@ -40,6 +40,20 @@ const VALID_VIDEO_DURATIONS = new Set([
   '10s',
 ]);
 
+interface VideoJobRecord {
+  status: 'pending' | 'completed' | 'failed';
+  result?: {
+    videoDataUrl: string;
+    mimeType: string;
+    interactionId: string;
+    modelUsed: string;
+  };
+  error?: string;
+  httpStatus?: number;
+}
+
+const videoJobs = new Map<string, VideoJobRecord>();
+
 function createGeminiClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -49,6 +63,7 @@ function createGeminiClient(): GoogleGenAI {
   }
   return new GoogleGenAI({
     apiKey,
+    apiVersion: 'v1beta',
     httpOptions: {
       headers: {
         'User-Agent': 'aistudio-build',
@@ -70,6 +85,12 @@ function formatGeminiError(err: unknown): { status: number; message: string } {
       status: 429,
       message: `${raw} — Quota reached. Selecting a billing-enabled API key in Settings > Secrets increases quota.`,
     };
+  }
+  if (raw.includes('NOT_FOUND') || raw.includes('404')) {
+    return { status: 404, message: raw };
+  }
+  if (raw.includes('INVALID_ARGUMENT') || raw.includes('400')) {
+    return { status: 400, message: raw };
   }
   return { status: 500, message: raw };
 }
@@ -208,85 +229,156 @@ async function startServer(): Promise<void> {
           ]
         : prompt;
 
-      const interaction = await ai.interactions.create(
-        {
-          model: 'gemini-omni-1.2-flash',
-          ...(body.previousInteractionId
-            ? { previous_interaction_id: body.previousInteractionId }
-            : {}),
-          input: inputPayload,
-          background: false,
-          store: true,
-          stream: false,
-          response_format: {
-            type: 'video',
-            aspect_ratio: aspectRatio,
-            duration,
-            resolution,
-          },
-        },
-        { timeout: 300000 }
-      );
+      const jobId = `vjob_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const jobRecord: VideoJobRecord = { status: 'pending' };
+      videoJobs.set(jobId, jobRecord);
 
-      let videoBase64 = interaction.output_video?.data ?? '';
-      let videoUri = interaction.output_video?.uri ?? '';
-      let videoMime = interaction.output_video?.mime_type || 'video/mp4';
+      const scheduleCleanup = () => {
+        setTimeout(() => {
+          videoJobs.delete(jobId);
+        }, 10 * 60 * 1000).unref?.();
+      };
 
-      if (!videoBase64 && !videoUri && Array.isArray(interaction.steps)) {
-        for (const step of interaction.steps) {
-          if (step.type === 'model_output' && Array.isArray(step.content)) {
-            for (const item of step.content) {
-              if (item.type === 'video') {
-                if ('data' in item && typeof item.data === 'string' && item.data) {
-                  videoBase64 = item.data;
-                }
-                if ('uri' in item && typeof item.uri === 'string' && item.uri) {
-                  videoUri = item.uri;
-                }
-                if ('mime_type' in item && typeof item.mime_type === 'string' && item.mime_type) {
-                  videoMime = item.mime_type;
+      const renderPromise = (async () => {
+        try {
+          const interaction = await ai.interactions.create(
+            {
+              model: 'gemini-omni-1.2-flash',
+              ...(body.previousInteractionId
+                ? { previous_interaction_id: body.previousInteractionId }
+                : {}),
+              input: inputPayload,
+              background: false,
+              store: true,
+              stream: false,
+              response_format: {
+                type: 'video',
+                aspect_ratio: aspectRatio,
+                duration,
+                resolution,
+              },
+            },
+            { timeout: 300000 }
+          );
+
+          let videoBase64 = interaction.output_video?.data ?? '';
+          let videoUri = interaction.output_video?.uri ?? '';
+          let videoMime = interaction.output_video?.mime_type || 'video/mp4';
+
+          if (!videoBase64 && !videoUri && Array.isArray(interaction.steps)) {
+            for (const step of interaction.steps) {
+              if (step.type === 'model_output' && Array.isArray(step.content)) {
+                for (const item of step.content) {
+                  if (item.type === 'video') {
+                    if ('data' in item && typeof item.data === 'string' && item.data) {
+                      videoBase64 = item.data;
+                    }
+                    if ('uri' in item && typeof item.uri === 'string' && item.uri) {
+                      videoUri = item.uri;
+                    }
+                    if (
+                      'mime_type' in item &&
+                      typeof item.mime_type === 'string' &&
+                      item.mime_type
+                    ) {
+                      videoMime = item.mime_type;
+                    }
+                  }
                 }
               }
             }
           }
-        }
-      }
 
-      if (!videoBase64 && videoUri) {
-        const apiKey = process.env.GEMINI_API_KEY ?? '';
-        const dlRes = await fetch(videoUri, {
-          headers: apiKey ? { 'x-goog-api-key': apiKey } : undefined,
-        });
-        if (!dlRes.ok) {
-          throw new Error(`Generated video URI could not be retrieved (HTTP ${dlRes.status}).`);
-        }
-        const arrBuf = await dlRes.arrayBuffer();
-        videoBase64 = Buffer.from(arrBuf).toString('base64');
-        const contentType = dlRes.headers.get('content-type');
-        if (contentType) {
-          videoMime = contentType;
-        }
-      }
+          if (!videoBase64 && videoUri) {
+            const apiKey = process.env.GEMINI_API_KEY ?? '';
+            const dlRes = await fetch(videoUri, {
+              headers: apiKey ? { 'x-goog-api-key': apiKey } : undefined,
+            });
+            if (!dlRes.ok) {
+              throw new Error(
+                `Generated video URI could not be retrieved (HTTP ${dlRes.status}).`
+              );
+            }
+            const arrBuf = await dlRes.arrayBuffer();
+            videoBase64 = Buffer.from(arrBuf).toString('base64');
+            const contentType = dlRes.headers.get('content-type');
+            if (contentType) {
+              videoMime = contentType;
+            }
+          }
 
-      if (!videoBase64) {
-        res.status(502).json({
-          error:
-            interaction.output_text ||
-            'No video clip was returned by gemini-omni-1.2-flash. Try refining the motion prompt.',
-        });
+          if (!videoBase64) {
+            jobRecord.status = 'failed';
+            jobRecord.httpStatus = 502;
+            jobRecord.error =
+              interaction.output_text ||
+              'No video clip was returned by gemini-omni-1.2-flash. Try refining the motion prompt.';
+            return;
+          }
+
+          jobRecord.status = 'completed';
+          jobRecord.result = {
+            videoDataUrl: `data:${videoMime};base64,${videoBase64}`,
+            mimeType: videoMime,
+            interactionId: interaction.id ?? '',
+            modelUsed: 'gemini-omni-1.2-flash',
+          };
+        } catch (err) {
+          const formatted = formatGeminiError(err);
+          jobRecord.status = 'failed';
+          jobRecord.httpStatus = formatted.status;
+          jobRecord.error = formatted.message;
+        } finally {
+          scheduleCleanup();
+        }
+      })();
+
+      // Wait briefly so immediate errors (4xx/config) or fast completions return synchronously,
+      // otherwise return 202 Accepted for client-side polling to avoid 60s reverse-proxy timeouts.
+      await Promise.race([
+        renderPromise,
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, 3000);
+        }),
+      ]);
+
+      if (jobRecord.status === 'completed' && jobRecord.result) {
+        videoJobs.delete(jobId);
+        res.json(jobRecord.result);
         return;
       }
 
-      res.json({
-        videoDataUrl: `data:${videoMime};base64,${videoBase64}`,
-        mimeType: videoMime,
-        interactionId: interaction.id ?? '',
-        modelUsed: 'gemini-omni-1.2-flash',
-      });
+      if (jobRecord.status === 'failed') {
+        videoJobs.delete(jobId);
+        res.status(jobRecord.httpStatus ?? 500).json({ error: jobRecord.error });
+        return;
+      }
+
+      res.status(202).json({ status: 'pending', jobId });
     } catch (err) {
       const formatted = formatGeminiError(err);
       res.status(formatted.status).json({ error: formatted.message });
     }
+  });
+
+  app.get('/api/gemini/video/:jobId', (req: Request, res: Response) => {
+    const rawId = req.params.jobId;
+    const jobId = Array.isArray(rawId) ? rawId[0] : rawId;
+    const job = jobId ? videoJobs.get(jobId) : undefined;
+    if (!job) {
+      res.status(404).json({ error: 'Video render job not found or expired. Please try again.' });
+      return;
+    }
+    if (job.status === 'pending') {
+      res.json({ status: 'pending', jobId });
+      return;
+    }
+    videoJobs.delete(jobId);
+    if (job.status === 'failed') {
+      res.status(job.httpStatus ?? 500).json({ status: 'failed', error: job.error });
+      return;
+    }
+    res.json({ status: 'completed', ...job.result });
   });
 
   const distPath = path.join(__dirname, 'dist');
