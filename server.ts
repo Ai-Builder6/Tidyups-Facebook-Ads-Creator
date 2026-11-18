@@ -2,11 +2,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { GoogleGenAI } from '@google/genai';
-import express, { Request, Response } from 'express';
+import express from 'express';
+import type { Request, Response } from 'express';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 interface ImageGenerateBody {
   prompt?: string;
@@ -288,19 +289,21 @@ async function startServer(): Promise<void> {
     }
   });
 
-  const isProd = process.env.NODE_ENV === 'production' || fs.existsSync(path.join(__dirname, 'dist', 'index.html')) && process.argv[1]?.includes('node') && !process.env.VITE_DEV;
+  const distPath = path.join(__dirname, 'dist');
+  const isProd =
+    process.env.NODE_ENV === 'production' ||
+    process.env.npm_lifecycle_event === 'start';
 
-  if (process.env.NODE_ENV !== 'production') {
+  if (!isProd) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true, hmr: false },
       appType: 'spa',
     });
     app.use(vite.middlewares);
-  } else if (isProd) {
-    const distPath = path.join(__dirname, 'dist');
+  } else if (fs.existsSync(path.join(distPath, 'index.html'))) {
     app.use(express.static(distPath));
-    app.get('*all', (_req: Request, res: Response) => {
+    app.use((_req: Request, res: Response) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
