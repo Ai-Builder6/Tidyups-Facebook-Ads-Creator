@@ -564,7 +564,7 @@ function buildLeadTrackerSeedRows(settings: CampaignSettings, ads: GeneratedAd[]
       new Date().toISOString().slice(0, 10),
       'Sample Lead (Replace with Meta Lead Sync)',
       settings.phone.trim(),
-      'leads@tidyupscleaning.com',
+      'booking@tidyupscleaning.com',
       settings.area.trim(),
       serviceLabel,
       '3 Bed / 2.5 Bath',

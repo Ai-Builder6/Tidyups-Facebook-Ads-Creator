@@ -159,17 +159,17 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                   <div>
                     <div className="text-xs text-[#6c6277] dark:text-slate-400">Call or Text</div>
                     <a
-                      href="tel:7807185092"
+                      href="tel:5877422500"
                       className="text-sm font-extrabold text-[#241436] dark:text-white hover:underline inline-flex items-center gap-1.5 mt-0.5"
                     >
                       <Phone className="w-3.5 h-3.5 text-[#56249a] dark:text-[#c084fc]" />
-                      780-718-5092
+                      587-742-2500
                     </a>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      void copyContactValue('780-718-5092', 'phone');
+                      void copyContactValue('587-742-2500', 'phone');
                     }}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#d9c9e5] dark:border-[#392b54] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] whitespace-nowrap shrink-0 cursor-pointer"
                   >
@@ -186,17 +186,17 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                   <div className="min-w-0">
                     <div className="text-xs text-[#6c6277] dark:text-slate-400">Email</div>
                     <a
-                      href="mailto:cleaningserviceyeg@gmail.com"
+                      href="mailto:booking@tidyupscleaning.com"
                       className="text-sm font-extrabold text-[#241436] dark:text-white hover:underline inline-flex items-center gap-1.5 mt-0.5 truncate"
                     >
                       <Mail className="w-3.5 h-3.5 text-[#56249a] dark:text-[#c084fc] shrink-0" />
-                      cleaningserviceyeg@gmail.com
+                      booking@tidyupscleaning.com
                     </a>
                   </div>
                   <button
                     type="button"
                     onClick={() => {
-                      void copyContactValue('cleaningserviceyeg@gmail.com', 'email');
+                      void copyContactValue('booking@tidyupscleaning.com', 'email');
                     }}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#d9c9e5] dark:border-[#392b54] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] whitespace-nowrap shrink-0 cursor-pointer"
                   >

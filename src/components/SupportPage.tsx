@@ -53,7 +53,7 @@ const FAQ_ITEMS: FaqItem[] = [
     category: 'guarantee',
     question: 'How does the Tidyups 24-Hour Satisfaction Guarantee work?',
     answer:
-      'If any item on your booked cleaning checklist was missed, notify Tidyups within 24 hours of service completion via 780-718-5092, cleaningserviceyeg@gmail.com, or the support ticket form on this page. Our Edmonton team will return promptly to re-clean the affected area at no extra charge.',
+      'If any item on your booked cleaning checklist was missed, notify Tidyups within 24 hours of service completion via 587-742-2500, booking@tidyupscleaning.com, or the support ticket form on this page. Our Edmonton team will return promptly to re-clean the affected area at no extra charge.',
   },
   {
     id: 'supplies-pets',
@@ -309,21 +309,21 @@ export const SupportPage: React.FC<SupportPageProps> = ({
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-[#6c6277] dark:text-slate-400">Phone &amp; SMS</span>
                 <a
-                  href="tel:7807185092"
+                  href="tel:5877422500"
                   className="inline-flex items-center gap-1.5 font-bold text-[#56249a] dark:text-[#d8b4fe] underline"
                 >
                   <Phone className="w-3.5 h-3.5" />
-                  780-718-5092
+                  587-742-2500
                 </a>
               </div>
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-[#6c6277] dark:text-slate-400">Support Email</span>
                 <a
-                  href="mailto:cleaningserviceyeg@gmail.com"
+                  href="mailto:booking@tidyupscleaning.com"
                   className="inline-flex items-center gap-1.5 font-bold text-[#56249a] dark:text-[#d8b4fe] underline truncate"
                 >
                   <Mail className="w-3.5 h-3.5 shrink-0" />
-                  cleaningserviceyeg@gmail.com
+                  booking@tidyupscleaning.com
                 </a>
               </div>
               <div className="flex items-center justify-between gap-2">
@@ -528,7 +528,7 @@ export const SupportPage: React.FC<SupportPageProps> = ({
                   Support Ticket {createdTicket.ticketCode} Logged
                 </div>
                 <div className="mt-0.5">
-                  We have recorded your request for {createdTicket.email}. For urgent same-day schedule updates, call 780-718-5092.
+                  We have recorded your request for {createdTicket.email}. For urgent same-day schedule updates, call 587-742-2500.
                 </div>
               </div>
             </div>

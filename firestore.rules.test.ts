@@ -29,7 +29,7 @@ function makeValidCampaignPayload(ownerId: string) {
     offer: '10% off first clean',
     area: 'Edmonton, Alberta + 20 km',
     bookingUrl: 'https://app.tidyupscleaning.com/booking',
-    businessPhone: '780-718-5092',
+    businessPhone: '587-742-2500',
     notes: 'Highlight kitchen cabinet detailing',
     adCount: 3,
     linkedSheetId: '',

@@ -21,7 +21,7 @@ const PRIVACY_SECTIONS: PrivacySection[] = [
     heading: '01. Personal Information We Collect',
     paragraphs: [
       'Tidyups Cleaning Service Inc. ("Tidyups") respects your privacy and complies with Alberta’s Personal Information Protection Act (PIPA) and Canada’s Personal Information Protection and Electronic Documents Act (PIPEDA).',
-      'When you request an estimate on /booking, submit an inquiry on /contact or /support, or call/text 780-718-5092, we collect only the information needed to deliver your quote and perform cleaning services: your name, email address, phone number, Edmonton-area service address, property size, preferred appointment dates, and entry or pet instructions.',
+      'When you request an estimate on /booking, submit an inquiry on /contact or /support, or call/text 587-742-2500, we collect only the information needed to deliver your quote and perform cleaning services: your name, email address, phone number, Edmonton-area service address, property size, preferred appointment dates, and entry or pet instructions.',
     ],
   },
   {
@@ -29,7 +29,7 @@ const PRIVACY_SECTIONS: PrivacySection[] = [
     heading: '02. Meta (Facebook & Instagram) Lead Ads Disclosure',
     paragraphs: [
       'If you submit your contact details through a Tidyups Cleaning Service Inc. Instant Form or Lead Ad on Facebook or Instagram, we use that information solely to prepare your requested cleaning quote, confirm availability in your neighborhood, and follow up regarding your inquiry.',
-      'We never sell, rent, or broker Meta Lead Ads contact lists to third-party marketers or lead aggregators. You may opt out of promotional follow-ups at any time by replying STOP to text messages or emailing cleaningserviceyeg@gmail.com.',
+      'We never sell, rent, or broker Meta Lead Ads contact lists to third-party marketers or lead aggregators. You may opt out of promotional follow-ups at any time by replying STOP to text messages or emailing booking@tidyupscleaning.com.',
     ],
   },
   {
@@ -65,7 +65,7 @@ const PRIVACY_SECTIONS: PrivacySection[] = [
     id: 'privacy-officer',
     heading: '07. Privacy Officer & Contact Information',
     paragraphs: [
-      'To exercise your privacy rights, request data deletion, or ask questions about how Tidyups handles personal information, contact our Privacy Coordinator at Tidyups Cleaning Service Inc., Edmonton, Alberta — Email: cleaningserviceyeg@gmail.com · Phone: 780-718-5092.',
+      'To exercise your privacy rights, request data deletion, or ask questions about how Tidyups handles personal information, contact our Privacy Coordinator at Tidyups Cleaning Service Inc., Edmonton, Alberta — Email: booking@tidyupscleaning.com · Phone: 587-742-2500.',
     ],
   },
 ];

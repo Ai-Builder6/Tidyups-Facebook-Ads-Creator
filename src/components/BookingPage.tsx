@@ -259,7 +259,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
       `Estimated Total   : $${record.estimatedTotalCad} CAD (includes 5% Alberta GST)`,
       '',
       'Tidyups Cleaning Service Inc. · Edmonton, Alberta',
-      'Phone: 780-718-5092 · Email: cleaningserviceyeg@gmail.com',
+      'Phone: 587-742-2500 · Email: booking@tidyupscleaning.com',
       'Backed by our 24-Hour Walkthrough Satisfaction Guarantee.',
     ].join('\r\n');
 
@@ -374,7 +374,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
           </div>
           <div className="p-4 sm:p-5">
             <div className="text-sm font-extrabold text-[#241436] dark:text-white tabular-nums">
-              780-718-5092
+              587-742-2500
             </div>
             <div className="text-xs text-[#6c6277] dark:text-slate-400 mt-0.5">
               Direct local Edmonton dispatch &amp; supplies included
@@ -789,11 +789,11 @@ export const BookingPage: React.FC<BookingPageProps> = ({
           <div className="pt-3 border-t border-[#e8e1ef] dark:border-[#2d2342] flex items-center justify-between text-xs text-[#6c6277] dark:text-slate-400 tabular-nums">
             <span>Prefer to book by phone?</span>
             <a
-              href="tel:7807185092"
+              href="tel:5877422500"
               className="inline-flex items-center gap-1 font-bold text-[#56249a] dark:text-[#d8b4fe] underline whitespace-nowrap"
             >
               <Phone className="w-3.5 h-3.5" />
-              780-718-5092
+              587-742-2500
             </a>
           </div>
         </aside>
@@ -839,7 +839,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
               </button>
 
               <a
-                href={`mailto:cleaningserviceyeg@gmail.com?subject=${encodeURIComponent(
+                href={`mailto:booking@tidyupscleaning.com?subject=${encodeURIComponent(
                   `Tidyups Booking Confirmation ${latestConfirmation.referenceCode}`
                 )}&body=${encodeURIComponent(
                   `Hello Tidyups Team,\n\nPlease confirm my ${

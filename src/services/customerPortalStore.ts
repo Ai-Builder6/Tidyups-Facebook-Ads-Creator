@@ -421,7 +421,7 @@ export function downloadBookingCalendarInvite(booking: BookingRequestRecord): vo
     `DTEND:${dateClean}T${endHour}`,
     `SUMMARY:Tidyups ${serviceLabel} (${booking.referenceCode})`,
     `LOCATION:${booking.serviceAddress.replace(/,/g, '\\,')}`,
-    `DESCRIPTION:Reference: ${booking.referenceCode}\\nEstimated Total: $${booking.estimatedTotalCad} CAD (incl. GST)\\nTidyups Support: 780-718-5092 | cleaningserviceyeg@gmail.com`,
+    `DESCRIPTION:Reference: ${booking.referenceCode}\\nEstimated Total: $${booking.estimatedTotalCad} CAD (incl. GST)\\nTidyups Support: 587-742-2500 | booking@tidyupscleaning.com`,
     'END:VEVENT',
     'END:VCALENDAR',
   ].join('\r\n');

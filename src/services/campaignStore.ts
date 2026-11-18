@@ -75,7 +75,7 @@ export function subscribeToUserCampaigns(
           offer: String(d.offer ?? ''),
           area: String(d.area ?? 'Edmonton, Alberta + 20 km'),
           bookingUrl: String(d.bookingUrl ?? 'https://app.tidyupscleaning.com/booking'),
-          businessPhone: String(d.businessPhone ?? '780-718-5092'),
+          businessPhone: String(d.businessPhone ?? '587-742-2500'),
           notes: String(d.notes ?? ''),
           adCount: Number(d.adCount ?? 5),
           linkedSheetId: String(d.linkedSheetId ?? ''),
@@ -167,7 +167,7 @@ export async function saveCampaignWithAdsToFirestore(params: {
   const safePhone = clampString(
     params.settings.phone,
     BLUEPRINT_LIMITS.phoneMax,
-    '780-718-5092'
+    '587-742-2500'
   );
 
   const campaignPath = `campaigns/${campaignId}`;
@@ -198,7 +198,7 @@ export async function saveCampaignWithAdsToFirestore(params: {
       offer: (params.settings.offer ?? '').trim().slice(0, BLUEPRINT_LIMITS.offerMax),
       area: clampString(params.settings.area, BLUEPRINT_LIMITS.areaMax, 'Edmonton, Alberta + 20 km'),
       bookingUrl: safeBookingUrl,
-      businessPhone: safePhone.length >= BLUEPRINT_LIMITS.phoneMin ? safePhone : '780-718-5092',
+      businessPhone: safePhone.length >= BLUEPRINT_LIMITS.phoneMin ? safePhone : '587-742-2500',
       notes: (params.settings.notes ?? '').trim().slice(0, BLUEPRINT_LIMITS.notesMax),
       adCount: safeAds.length,
       linkedSheetId: (params.links.linkedSheetId ?? '').trim().slice(0, BLUEPRINT_LIMITS.linkedIdMax),
@@ -217,7 +217,7 @@ export async function saveCampaignWithAdsToFirestore(params: {
       offer: (params.settings.offer ?? '').trim().slice(0, BLUEPRINT_LIMITS.offerMax),
       area: clampString(params.settings.area, BLUEPRINT_LIMITS.areaMax, 'Edmonton, Alberta + 20 km'),
       bookingUrl: safeBookingUrl,
-      businessPhone: safePhone.length >= BLUEPRINT_LIMITS.phoneMin ? safePhone : '780-718-5092',
+      businessPhone: safePhone.length >= BLUEPRINT_LIMITS.phoneMin ? safePhone : '587-742-2500',
       notes: (params.settings.notes ?? '').trim().slice(0, BLUEPRINT_LIMITS.notesMax),
       adCount: safeAds.length,
       linkedSheetId: (params.links.linkedSheetId ?? '').trim().slice(0, BLUEPRINT_LIMITS.linkedIdMax),

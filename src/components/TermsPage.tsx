@@ -44,7 +44,7 @@ const TERMS_SECTIONS: LegalSection[] = [
     id: 'cancellations',
     heading: '04. Cancellations, Rescheduling & Lockouts',
     paragraphs: [
-      'Appointments may be rescheduled or cancelled without penalty when Tidyups receives at least 24 hours notice prior to the start of your arrival window by calling 780-718-5092, emailing cleaningserviceyeg@gmail.com, or submitting a request on /support.',
+      'Appointments may be rescheduled or cancelled without penalty when Tidyups receives at least 24 hours notice prior to the start of your arrival window by calling 587-742-2500, emailing booking@tidyupscleaning.com, or submitting a request on /support.',
       'Cancellations received with less than 24 hours notice, or crew lockouts where entry, water, or electricity are unavailable after a 20-minute wait and contact attempt, may be subject to a $65 CAD dispatch fee to compensate assigned cleaning technicians.',
     ],
   },
@@ -77,7 +77,7 @@ const TERMS_SECTIONS: LegalSection[] = [
     heading: '08. Governing Law & Contact',
     paragraphs: [
       'These Terms & Conditions are governed by and construed in accordance with the laws of the Province of Alberta and the federal laws of Canada applicable therein, with exclusive venue in Edmonton, Alberta.',
-      'Questions regarding these Terms may be directed to Tidyups Cleaning Service Inc. at 780-718-5092 or cleaningserviceyeg@gmail.com.',
+      'Questions regarding these Terms may be directed to Tidyups Cleaning Service Inc. at 587-742-2500 or booking@tidyupscleaning.com.',
     ],
   },
 ];

@@ -85,7 +85,7 @@ import {
   resolvePageFromPath,
 } from './utils/routing';
 
-const LOCAL_SETTINGS_KEY = 'tidyups-settings';
+const LOCAL_SETTINGS_KEY = 'tidyups-settings-v2';
 const LOCAL_THEME_KEY = 'tidyups-theme';
 
 function loadInitialTheme(): ThemeMode {
@@ -120,7 +120,10 @@ function loadInitialSettings(): CampaignSettings {
       offer: typeof parsed.offer === 'string' ? parsed.offer : DEFAULT_SETTINGS.offer,
       area: typeof parsed.area === 'string' ? parsed.area : DEFAULT_SETTINGS.area,
       booking: typeof parsed.booking === 'string' ? parsed.booking : DEFAULT_SETTINGS.booking,
-      phone: typeof parsed.phone === 'string' ? parsed.phone : DEFAULT_SETTINGS.phone,
+      phone:
+        typeof parsed.phone === 'string' && parsed.phone.trim()
+          ? parsed.phone
+          : DEFAULT_SETTINGS.phone,
       notes: typeof parsed.notes === 'string' ? parsed.notes : DEFAULT_SETTINGS.notes,
     };
   } catch {
@@ -1594,12 +1597,19 @@ export const App: React.FC = () => {
       <footer className="max-w-[1200px] w-full mx-auto px-5 pt-5 pb-8 border-t border-[#e8e1ef] dark:border-[#221936] text-[#766684] dark:text-slate-400 text-xs leading-relaxed tabular-nums print:hidden space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            Tidyups Cleaning Service Inc. · Edmonton, AB · 780-718-5092 ·{' '}
+            Tidyups Cleaning Service Inc. · Edmonton, AB ·{' '}
             <a
-              href="mailto:cleaningserviceyeg@gmail.com"
+              href="tel:5877422500"
               className="underline hover:text-[#56249a] dark:hover:text-[#c084fc]"
             >
-              cleaningserviceyeg@gmail.com
+              587-742-2500
+            </a>{' '}
+            ·{' '}
+            <a
+              href="mailto:booking@tidyupscleaning.com"
+              className="underline hover:text-[#56249a] dark:hover:text-[#c084fc]"
+            >
+              booking@tidyupscleaning.com
             </a>
           </div>
 

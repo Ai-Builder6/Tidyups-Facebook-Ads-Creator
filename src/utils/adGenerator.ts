@@ -210,7 +210,7 @@ export const DEFAULT_SETTINGS: CampaignSettings = {
   offer: '',
   area: 'Edmonton, Alberta + 20 km',
   booking: 'https://app.tidyupscleaning.com/booking',
-  phone: '780-718-5092',
+  phone: '587-742-2500',
   notes: '',
 };
 
