@@ -277,6 +277,169 @@ service cloud.firestore {
         && data.updatedAt is timestamp;
     }
 
+    function isValidBookingRequest(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'referenceCode',
+          'service',
+          'frequency',
+          'bedrooms',
+          'bathrooms',
+          'sqftTier',
+          'addOnsSummary',
+          'preferredDate',
+          'arrivalWindow',
+          'estimatedTotalCad',
+          'customerName',
+          'customerEmail',
+          'customerPhone',
+          'serviceAddress',
+          'notes',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId',
+          'referenceCode',
+          'service',
+          'frequency',
+          'bedrooms',
+          'bathrooms',
+          'sqftTier',
+          'addOnsSummary',
+          'preferredDate',
+          'arrivalWindow',
+          'estimatedTotalCad',
+          'customerName',
+          'customerEmail',
+          'customerPhone',
+          'serviceAddress',
+          'notes',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId == request.auth.uid
+        && data.referenceCode is string
+        && data.referenceCode.size() >= 9
+        && data.referenceCode.size() <= 16
+        && data.referenceCode.matches('^TU-[A-Z0-9]{6,12}$')
+        && data['service'] is string
+        && data['service'].size() <= 32
+        && data['service'] in ['moveout', 'deep', 'standard', 'movein', 'recurring', 'commercial', 'airbnb']
+        && data.frequency is string
+        && data.frequency.size() <= 24
+        && data.frequency in ['once', 'weekly', 'biweekly', 'monthly']
+        && data.bedrooms is int
+        && data.bedrooms >= 0
+        && data.bedrooms <= 10
+        && data.bathrooms is int
+        && data.bathrooms >= 1
+        && data.bathrooms <= 8
+        && data.sqftTier is string
+        && data.sqftTier.size() <= 24
+        && data.sqftTier in ['under1000', '1000to1800', '1800to2600', 'over2600']
+        && data.addOnsSummary is string
+        && data.addOnsSummary.size() <= 240
+        && data.preferredDate is string
+        && data.preferredDate.size() >= 8
+        && data.preferredDate.size() <= 20
+        && data.arrivalWindow is string
+        && data.arrivalWindow.size() <= 24
+        && data.arrivalWindow in ['morning', 'midday', 'afternoon']
+        && data.estimatedTotalCad is int
+        && data.estimatedTotalCad >= 50
+        && data.estimatedTotalCad <= 25000
+        && data.customerName is string
+        && data.customerName.size() >= 2
+        && data.customerName.size() <= 100
+        && data.customerEmail is string
+        && data.customerEmail.size() >= 5
+        && data.customerEmail.size() <= 160
+        && data.customerPhone is string
+        && data.customerPhone.size() >= 7
+        && data.customerPhone.size() <= 40
+        && data.serviceAddress is string
+        && data.serviceAddress.size() >= 5
+        && data.serviceAddress.size() <= 240
+        && data.notes is string
+        && data.notes.size() <= 500
+        && data.status is string
+        && data.status.size() <= 24
+        && data.status in ['requested', 'confirmed', 'cancelled']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCustomerInquiry(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'ticketCode',
+          'channel',
+          'category',
+          'name',
+          'email',
+          'phone',
+          'bookingRef',
+          'message',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId',
+          'ticketCode',
+          'channel',
+          'category',
+          'name',
+          'email',
+          'phone',
+          'bookingRef',
+          'message',
+          'status',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId == request.auth.uid
+        && data.ticketCode is string
+        && data.ticketCode.size() >= 10
+        && data.ticketCode.size() <= 16
+        && data.ticketCode.matches('^SUP-[A-Z0-9]{6,12}$')
+        && data.channel is string
+        && data.channel.size() <= 24
+        && data.channel in ['contact', 'support']
+        && data.category is string
+        && data.category.size() <= 32
+        && data.category in ['quote', 'commercial', 'reschedule', 'guarantee', 'billing', 'workspace', 'general']
+        && data.name is string
+        && data.name.size() >= 2
+        && data.name.size() <= 100
+        && data.email is string
+        && data.email.size() >= 5
+        && data.email.size() <= 160
+        && data.phone is string
+        && data.phone.size() <= 40
+        && data.bookingRef is string
+        && data.bookingRef.size() <= 32
+        && data.message is string
+        && data.message.size() >= 5
+        && data.message.size() <= 1500
+        && data.status is string
+        && data.status.size() <= 24
+        && data.status in ['open', 'resolved']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     // Collection: /campaigns/{campaignId}
     match /campaigns/{campaignId} {
       allow get: if isSignedIn()
@@ -414,6 +577,78 @@ service cloud.firestore {
 
       allow delete: if isVerifiedUser()
         && isValidId(assetId)
+        && existing().ownerId == request.auth.uid;
+    }
+
+    // Collection: /bookingRequests/{bookingId} (PII Isolated + Terminal State Locked)
+    match /bookingRequests/{bookingId} {
+      allow get: if isSignedIn()
+        && isValidId(bookingId)
+        && existing().ownerId == request.auth.uid;
+
+      allow list: if isSignedIn()
+        && existing().ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser()
+        && isValidId(bookingId)
+        && isValidBookingRequest(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(bookingId)
+        && isValidBookingRequest(incoming())
+        && existing().ownerId == request.auth.uid
+        && existing().status != 'cancelled'
+        && incoming().ownerId == existing().ownerId
+        && incoming().referenceCode == existing().referenceCode
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          || incoming().diff(existing()).affectedKeys().hasOnly([
+            'preferredDate',
+            'arrivalWindow',
+            'notes',
+            'status',
+            'updatedAt'
+          ])
+        );
+
+      allow delete: if isVerifiedUser()
+        && isValidId(bookingId)
+        && existing().ownerId == request.auth.uid;
+    }
+
+    // Collection: /inquiries/{inquiryId} (PII Isolated + Terminal State Locked)
+    match /inquiries/{inquiryId} {
+      allow get: if isSignedIn()
+        && isValidId(inquiryId)
+        && existing().ownerId == request.auth.uid;
+
+      allow list: if isSignedIn()
+        && existing().ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser()
+        && isValidId(inquiryId)
+        && isValidCustomerInquiry(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(inquiryId)
+        && isValidCustomerInquiry(incoming())
+        && existing().ownerId == request.auth.uid
+        && existing().status != 'resolved'
+        && incoming().ownerId == existing().ownerId
+        && incoming().ticketCode == existing().ticketCode
+        && incoming().channel == existing().channel
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']);
+
+      allow delete: if isVerifiedUser()
+        && isValidId(inquiryId)
         && existing().ownerId == request.auth.uid;
     }
   }

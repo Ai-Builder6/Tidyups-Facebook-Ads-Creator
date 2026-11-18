@@ -346,6 +346,237 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "BookingRequest": {
+      "title": "BookingRequest",
+      "description": "An online residential or commercial cleaning quote and booking request submitted via /booking.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the signed-in user who saved the booking.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "referenceCode": {
+          "type": "string",
+          "description": "Human-readable booking confirmation code (e.g., TU-849201).",
+          "minLength": 9,
+          "maxLength": 16,
+          "pattern": "^TU-[A-Z0-9]{6,12}$"
+        },
+        "service": {
+          "type": "string",
+          "description": "Selected cleaning service key.",
+          "enum": ["moveout", "deep", "standard", "movein", "recurring", "commercial", "airbnb"],
+          "maxLength": 32
+        },
+        "frequency": {
+          "type": "string",
+          "description": "Cleaning schedule frequency.",
+          "enum": ["once", "weekly", "biweekly", "monthly"],
+          "maxLength": 24
+        },
+        "bedrooms": {
+          "type": "integer",
+          "description": "Number of bedrooms or office rooms (0 to 10)."
+        },
+        "bathrooms": {
+          "type": "integer",
+          "description": "Number of bathrooms (1 to 8)."
+        },
+        "sqftTier": {
+          "type": "string",
+          "description": "Approximate property square footage tier.",
+          "enum": ["under1000", "1000to1800", "1800to2600", "over2600"],
+          "maxLength": 24
+        },
+        "addOnsSummary": {
+          "type": "string",
+          "description": "Comma-separated summary of selected detail add-ons.",
+          "minLength": 0,
+          "maxLength": 240
+        },
+        "preferredDate": {
+          "type": "string",
+          "description": "Requested cleaning service date (YYYY-MM-DD).",
+          "minLength": 8,
+          "maxLength": 20
+        },
+        "arrivalWindow": {
+          "type": "string",
+          "description": "Preferred arrival window.",
+          "enum": ["morning", "midday", "afternoon"],
+          "maxLength": 24
+        },
+        "estimatedTotalCad": {
+          "type": "integer",
+          "description": "Estimated total in CAD including GST (50 to 25000)."
+        },
+        "customerName": {
+          "type": "string",
+          "description": "Customer full name (PII isolated to owner).",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "customerEmail": {
+          "type": "string",
+          "format": "email",
+          "description": "Customer email address (PII isolated to owner).",
+          "minLength": 5,
+          "maxLength": 160
+        },
+        "customerPhone": {
+          "type": "string",
+          "description": "Customer phone number (PII isolated to owner).",
+          "minLength": 7,
+          "maxLength": 40
+        },
+        "serviceAddress": {
+          "type": "string",
+          "description": "Edmonton-area service street address (PII isolated to owner).",
+          "minLength": 5,
+          "maxLength": 240
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional entry, parking, or pet instructions.",
+          "minLength": 0,
+          "maxLength": 500
+        },
+        "status": {
+          "type": "string",
+          "description": "Current booking lifecycle status.",
+          "enum": ["requested", "confirmed", "cancelled"],
+          "maxLength": 24
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the booking request was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the booking request was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "referenceCode",
+        "service",
+        "frequency",
+        "bedrooms",
+        "bathrooms",
+        "sqftTier",
+        "addOnsSummary",
+        "preferredDate",
+        "arrivalWindow",
+        "estimatedTotalCad",
+        "customerName",
+        "customerEmail",
+        "customerPhone",
+        "serviceAddress",
+        "notes",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CustomerInquiry": {
+      "title": "CustomerInquiry",
+      "description": "A support ticket or contact inquiry submitted via /support or /contact.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the signed-in user who submitted the inquiry.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ticketCode": {
+          "type": "string",
+          "description": "Human-readable support/contact reference code (e.g., SUP-492018).",
+          "minLength": 10,
+          "maxLength": 16,
+          "pattern": "^SUP-[A-Z0-9]{6,12}$"
+        },
+        "channel": {
+          "type": "string",
+          "description": "Originating page channel.",
+          "enum": ["contact", "support"],
+          "maxLength": 24
+        },
+        "category": {
+          "type": "string",
+          "description": "Inquiry topic classification.",
+          "enum": ["quote", "commercial", "reschedule", "guarantee", "billing", "workspace", "general"],
+          "maxLength": 32
+        },
+        "name": {
+          "type": "string",
+          "description": "Sender full name (PII isolated to owner).",
+          "minLength": 2,
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Sender email address (PII isolated to owner).",
+          "minLength": 5,
+          "maxLength": 160
+        },
+        "phone": {
+          "type": "string",
+          "description": "Optional sender phone number (PII isolated to owner).",
+          "minLength": 0,
+          "maxLength": 40
+        },
+        "bookingRef": {
+          "type": "string",
+          "description": "Optional associated booking reference code.",
+          "minLength": 0,
+          "maxLength": 32
+        },
+        "message": {
+          "type": "string",
+          "description": "Detailed inquiry or support request message.",
+          "minLength": 5,
+          "maxLength": 1500
+        },
+        "status": {
+          "type": "string",
+          "description": "Ticket lifecycle status.",
+          "enum": ["open", "resolved"],
+          "maxLength": 24
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the inquiry was created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the inquiry was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "ticketCode",
+        "channel",
+        "category",
+        "name",
+        "email",
+        "phone",
+        "bookingRef",
+        "message",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -360,6 +591,14 @@
     "/creativeAssets/{assetId}": {
       "schema": "CreativeAsset",
       "description": "Top-level portfolio storage for generated ad images, video ads, logos, and icons isolated per authenticated owner."
+    },
+    "/bookingRequests/{bookingId}": {
+      "schema": "BookingRequest",
+      "description": "Top-level online cleaning booking requests containing customer PII strictly isolated per authenticated owner."
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": "CustomerInquiry",
+      "description": "Top-level support tickets and contact inquiries strictly isolated per authenticated owner."
     }
   }
 }

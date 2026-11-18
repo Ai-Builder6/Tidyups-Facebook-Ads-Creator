@@ -9,9 +9,12 @@
 - **Creative Portfolio Isolation (`/creativeAssets/{assetId}`)**: Stores metadata, prompts, optional Google Drive file references (`driveFileId`, `driveWebViewLink`), and bounded compressed thumbnail previews (`previewDataUrl.size() <= 180000`, `svgMarkup.size() <= 40000`) for generated Ad Images (`ad-image`), Video Ads (`video-ad`), Brand Logos (`brand-logo`), and Brand Icons (`brand-icon`).
   - Strictly isolated per verified owner (`ownerId == request.auth.uid`, `isVerifiedUser()`).
   - `category`, `ownerId`, and `createdAt` are immutable after creation; updates only allow renaming `title` or linking `driveFileId` / `driveWebViewLink` with `updatedAt == request.time`.
-- **Secure List Queries**: `list` queries on `/campaigns`, `/campaigns/{campaignId}/ads`, and `/creativeAssets` strictly check `resource.data.ownerId == request.auth.uid` without performing `get()`/`exists()` inside `allow list`.
+- **PII-Isolated Booking Requests (`/bookingRequests/{bookingId}`) & Inquiries (`/inquiries/{inquiryId}`)**:
+  - Contain customer PII (`customerName`, `customerEmail`, `customerPhone`, `serviceAddress`, `name`, `email`, `phone`); `get` and `list` are strictly restricted to `existing().ownerId == request.auth.uid`.
+  - Enforce Terminal State Locking (Pillar 4.6): once a booking reaches `status == 'cancelled'` or an inquiry reaches `status == 'resolved'`, no subsequent updates are permitted.
+- **Secure List Queries**: `list` queries on `/campaigns`, `/campaigns/{campaignId}/ads`, `/creativeAssets`, `/bookingRequests`, and `/inquiries` strictly check `resource.data.ownerId == request.auth.uid` without performing `get()`/`exists()` inside `allow list`.
 - **Immutable & Temporal Fields**:
-  - `ownerId`, `campaignId`, `category`, and `createdAt` are strictly immutable after creation.
+  - `ownerId`, `campaignId`, `category`, `referenceCode`, `ticketCode`, `channel`, and `createdAt` are strictly immutable after creation.
   - `createdAt` on `create` and `updatedAt` on both `create` and `update` must equal `request.time`.
 
 ## 2. The "Dirty Dozen" Adversarial Payloads

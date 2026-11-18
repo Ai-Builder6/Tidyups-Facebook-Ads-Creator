@@ -15,10 +15,15 @@ import {
   Sparkles,
   Sun,
 } from 'lucide-react';
+import { BookingPage } from './components/BookingPage';
 import { ConfirmModal } from './components/ConfirmModal';
+import { ContactPage } from './components/ContactPage';
 import { GoogleSignInButton } from './components/GoogleSignInButton';
 import { ImageCreatorPage } from './components/ImageCreatorPage';
 import { LogoIconStudioPage } from './components/LogoIconStudioPage';
+import { PrivacyPage } from './components/PrivacyPage';
+import { SupportPage } from './components/SupportPage';
+import { TermsPage } from './components/TermsPage';
 import { ThemeMode, TidyupsLogoLockup } from './components/TidyupsLogo';
 import { VideoCreatorPage } from './components/VideoCreatorPage';
 import { HubTab, WorkspaceHub } from './components/WorkspaceHub';
@@ -33,6 +38,12 @@ import {
 } from './services/campaignStore';
 import { deleteCachedFullMediaFromBrowser } from './services/creativeApi';
 import {
+  loadLocalBookings,
+  loadLocalInquiries,
+  subscribeToUserBookings,
+  subscribeToUserInquiries,
+} from './services/customerPortalStore';
+import {
   deleteCreativeAssetFromFirestore,
   subscribeToPortfolioAssets,
 } from './services/portfolioStore';
@@ -44,9 +55,11 @@ import {
 import {
   AppPage,
   BLUEPRINT_LIMITS,
+  BookingRequestRecord,
   CampaignSettings,
   CreativeAsset,
   CreativeFormat,
+  CustomerInquiryRecord,
   GeneratedAd,
   PendingConfirmation,
   SavedCampaign,
@@ -65,6 +78,12 @@ import {
   TONE_LABELS,
   triggerBrowserDownload,
 } from './utils/adGenerator';
+import {
+  getFullPageUrl,
+  PAGE_PATHS,
+  PAGE_TITLES,
+  resolvePageFromPath,
+} from './utils/routing';
 
 const LOCAL_SETTINGS_KEY = 'tidyups-settings';
 const LOCAL_THEME_KEY = 'tidyups-theme';
@@ -111,7 +130,9 @@ function loadInitialSettings(): CampaignSettings {
 
 export const App: React.FC = () => {
   const [theme, setTheme] = useState<ThemeMode>(loadInitialTheme);
-  const [activePage, setActivePage] = useState<AppPage>('campaigns');
+  const [activePage, setActivePage] = useState<AppPage>(() =>
+    typeof window !== 'undefined' ? resolvePageFromPath(window.location.pathname) : 'campaigns'
+  );
   const [hubTab, setHubTab] = useState<HubTab>('cloud');
   const [settings, setSettings] = useState<CampaignSettings>(loadInitialSettings);
   const [ads, setAds] = useState<GeneratedAd[]>([]);
@@ -135,9 +156,13 @@ export const App: React.FC = () => {
   const [workspaceBusyAction, setWorkspaceBusyAction] = useState<string | null>(null);
   const [lastLeadsBundle, setLastLeadsBundle] = useState<LeadsAdsFolderBundleResult | null>(null);
 
-  // Firestore campaigns, creative portfolio & Workspace links
+  // Firestore campaigns, creative portfolio, bookings, inquiries & Workspace links
   const [savedCampaigns, setSavedCampaigns] = useState<SavedCampaign[]>([]);
   const [portfolioAssets, setPortfolioAssets] = useState<CreativeAsset[]>([]);
+  const [cloudBookings, setCloudBookings] = useState<BookingRequestRecord[]>([]);
+  const [localBookings, setLocalBookings] = useState<BookingRequestRecord[]>(loadLocalBookings);
+  const [cloudInquiries, setCloudInquiries] = useState<CustomerInquiryRecord[]>([]);
+  const [localInquiries, setLocalInquiries] = useState<CustomerInquiryRecord[]>(loadLocalInquiries);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [links, setLinks] = useState<LinkedWorkspaceRefs>({
     linkedSheetId: '',
@@ -148,6 +173,30 @@ export const App: React.FC = () => {
 
   // Confirmation modal state
   const [confirmation, setConfirmation] = useState<PendingConfirmation | null>(null);
+
+  const navigateToPage = (nextPage: AppPage) => {
+    setActivePage(nextPage);
+    if (typeof window !== 'undefined') {
+      const targetPath = PAGE_PATHS[nextPage];
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({}, '', targetPath);
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Sync browser Back/Forward navigation and document title
+  useEffect(() => {
+    const handlePopState = () => {
+      setActivePage(resolvePageFromPath(window.location.pathname));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  useEffect(() => {
+    document.title = PAGE_TITLES[activePage];
+  }, [activePage]);
 
   // Sync <html> .dark class and persist theme choice
   useEffect(() => {
@@ -172,6 +221,8 @@ export const App: React.FC = () => {
     if (!authReady || !user) {
       setSavedCampaigns([]);
       setPortfolioAssets([]);
+      setCloudBookings([]);
+      setCloudInquiries([]);
       return;
     }
     const unsubCampaigns = subscribeToUserCampaigns(
@@ -192,9 +243,29 @@ export const App: React.FC = () => {
         setStatus(`Could not load creative portfolio: ${err.message}`);
       }
     );
+    const unsubBookings = subscribeToUserBookings(
+      user.uid,
+      (items) => {
+        setCloudBookings(items);
+      },
+      (err) => {
+        setStatus(`Could not load booking requests: ${err.message}`);
+      }
+    );
+    const unsubInquiries = subscribeToUserInquiries(
+      user.uid,
+      (items) => {
+        setCloudInquiries(items);
+      },
+      (err) => {
+        setStatus(`Could not load customer inquiries: ${err.message}`);
+      }
+    );
     return () => {
       unsubCampaigns();
       unsubPortfolio();
+      unsubBookings();
+      unsubInquiries();
     };
   }, [authReady, user]);
 
@@ -526,36 +597,61 @@ export const App: React.FC = () => {
     ? `https://docs.google.com/spreadsheets/d/${links.linkedSheetId}/edit`
     : '';
 
+  const mergedBookings = [
+    ...cloudBookings,
+    ...localBookings.filter(
+      (local) => !cloudBookings.some((c) => c.id === local.id || c.referenceCode === local.referenceCode)
+    ),
+  ];
+
+  const mergedInquiries = [
+    ...cloudInquiries,
+    ...localInquiries.filter(
+      (local) => !cloudInquiries.some((c) => c.id === local.id || c.ticketCode === local.ticketCode)
+    ),
+  ];
+
   return (
     <div className="min-h-screen flex flex-col bg-[#f8f7fc] dark:bg-[#0f0b18] text-[#241436] dark:text-slate-100 transition-colors duration-150">
       {/* Clean 3-Zone Top Bar Contract */}
       <header className="bg-white dark:bg-[#140e21] border-b border-[#e8e1ef] dark:border-[#2a203f] print:hidden">
         <div className="max-w-[1200px] mx-auto px-5 py-3.5 flex items-center justify-between gap-8">
           {/* Zone 1: Adaptive Light/Dark Brand Lockup */}
-          <button
-            type="button"
-            onClick={() => setActivePage('campaigns')}
+          <a
+            href={PAGE_PATHS.campaigns}
+            onClick={(e) => {
+              if (!e.metaKey && !e.ctrlKey && e.button === 0) {
+                e.preventDefault();
+                navigateToPage('campaigns');
+              }
+            }}
             className="focus-visible:outline-3 focus-visible:outline-[#e987cc] rounded-xl shrink-0 cursor-pointer"
           >
             <TidyupsLogoLockup variant={theme} />
-          </button>
+          </a>
 
-          {/* Zone 2: 4 Clean Single-Line Studio Pages */}
+          {/* Zone 2: 5 Clean Single-Line Nav Links */}
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#6c6277] dark:text-slate-300">
             {(
               [
-                { key: 'campaigns', label: 'Campaigns & Sheets' },
+                { key: 'campaigns', label: 'Campaigns' },
                 { key: 'images', label: 'Image Creator' },
-                { key: 'videos', label: 'Video Ad Creator' },
-                { key: 'brand', label: 'Logo & Icon Studio' },
+                { key: 'videos', label: 'Video Creator' },
+                { key: 'brand', label: 'Logo Studio' },
+                { key: 'booking', label: 'Book Cleaning' },
               ] as Array<{ key: AppPage; label: string }>
             ).map((navItem) => {
               const isActive = activePage === navItem.key;
               return (
-                <button
+                <a
                   key={navItem.key}
-                  type="button"
-                  onClick={() => setActivePage(navItem.key)}
+                  href={PAGE_PATHS[navItem.key]}
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && e.button === 0) {
+                      e.preventDefault();
+                      navigateToPage(navItem.key);
+                    }
+                  }}
                   className={`underline-offset-8 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
                     isActive
                       ? 'text-[#56249a] dark:text-white font-bold underline decoration-2 decoration-[#e746a6]'
@@ -563,7 +659,7 @@ export const App: React.FC = () => {
                   }`}
                 >
                   {navItem.label}
-                </button>
+                </a>
               );
             })}
           </nav>
@@ -595,7 +691,7 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Workspace Subheader + Mobile Page Switcher + Light / Dark Theme Switch */}
+      {/* Workspace Subheader + Site Pages Navigation + Light / Dark Theme Switch */}
       <div className="max-w-[1200px] w-full mx-auto px-5 pt-6 pb-1 space-y-3 print:hidden">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -603,19 +699,24 @@ export const App: React.FC = () => {
               Tidyups Facebook &amp; Instagram Ads Creator
             </h1>
             <p className="text-xs sm:text-sm text-[#6c6277] dark:text-slate-400 mt-1 mb-0 tabular-nums">
-              Edmonton, AB · Colored-tab Sheets · 1-click Leads Ads Drive · AI Image, Video &amp; Mascot Logo Studio ({portfolioAssets.length} saved assets)
+              Edmonton, AB · Colored-tab Sheets · 1-click Leads Ads Drive · AI Creative Suite &amp; Customer Portal ({portfolioAssets.length} saved assets)
             </p>
           </div>
 
           {/* Interactive Light / Dark Theme Segmented Control */}
           <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setActivePage('brand')}
+            <a
+              href={PAGE_PATHS.booking}
+              onClick={(e) => {
+                if (!e.metaKey && !e.ctrlKey && e.button === 0) {
+                  e.preventDefault();
+                  navigateToPage('booking');
+                }
+              }}
               className="px-3 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#181226] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#221936] whitespace-nowrap shrink-0 cursor-pointer"
             >
-              Logo &amp; Icon Studio
-            </button>
+              Online Booking (/booking)
+            </a>
 
             <div
               role="group"
@@ -652,29 +753,72 @@ export const App: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile / Compact Page Switcher */}
-        <div className="flex md:hidden flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#ede6f6] dark:bg-[#181226]">
-          {(
-            [
-              { key: 'campaigns', label: 'Campaigns' },
-              { key: 'images', label: 'Image Ads' },
-              { key: 'videos', label: 'Video Ads' },
-              { key: 'brand', label: 'Logos & Icons' },
-            ] as Array<{ key: AppPage; label: string }>
-          ).map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setActivePage(item.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer ${
-                activePage === item.key
-                  ? 'bg-white dark:bg-[#2c2046] text-[#241436] dark:text-white shadow-xs'
-                  : 'text-[#6c6277] dark:text-slate-400'
-              }`}
-            >
-              {item.label}
-            </button>
-          ))}
+        {/* Customer, Support & Legal Pages Route Switcher (Desktop + Mobile) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+          <div className="flex md:hidden flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#ede6f6] dark:bg-[#181226]">
+            {(
+              [
+                { key: 'campaigns', label: 'Campaigns' },
+                { key: 'images', label: 'Image Ads' },
+                { key: 'videos', label: 'Video Ads' },
+                { key: 'brand', label: 'Logos & Icons' },
+              ] as Array<{ key: AppPage; label: string }>
+            ).map((item) => (
+              <a
+                key={item.key}
+                href={PAGE_PATHS[item.key]}
+                onClick={(e) => {
+                  if (!e.metaKey && !e.ctrlKey && e.button === 0) {
+                    e.preventDefault();
+                    navigateToPage(item.key);
+                  }
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer ${
+                  activePage === item.key
+                    ? 'bg-white dark:bg-[#2c2046] text-[#241436] dark:text-white shadow-xs'
+                    : 'text-[#6c6277] dark:text-slate-400'
+                }`}
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+
+          <nav
+            aria-label="Customer and legal pages"
+            className="flex flex-wrap items-center gap-1 p-1 rounded-xl bg-[#ede6f6]/80 dark:bg-[#181226] border border-[#e3d9f0] dark:border-[#2d2342]"
+          >
+            {(
+              [
+                { key: 'booking', label: 'Booking (/booking)' },
+                { key: 'support', label: 'Support (/support)' },
+                { key: 'contact', label: 'Contact (/contact)' },
+                { key: 'terms', label: 'Terms (/t&c)' },
+                { key: 'privacy', label: 'Privacy (/privacy)' },
+              ] as Array<{ key: AppPage; label: string }>
+            ).map((route) => {
+              const active = activePage === route.key;
+              return (
+                <a
+                  key={route.key}
+                  href={PAGE_PATHS[route.key]}
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && e.button === 0) {
+                      e.preventDefault();
+                      navigateToPage(route.key);
+                    }
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+                    active
+                      ? 'bg-white dark:bg-[#2c2046] text-[#56249a] dark:text-white shadow-xs'
+                      : 'text-[#6c6277] dark:text-slate-400 hover:text-[#241436] dark:hover:text-slate-200'
+                  }`}
+                >
+                  {route.label}
+                </a>
+              );
+            })}
+          </nav>
         </div>
       </div>
 
@@ -761,6 +905,60 @@ export const App: React.FC = () => {
             onStatus={setStatus}
             status={status}
           />
+        </main>
+      )}
+
+      {activePage === 'booking' && (
+        <main className="max-w-[1200px] w-full mx-auto my-6 px-5 flex-1">
+          <BookingPage
+            user={user}
+            bookings={mergedBookings}
+            onBookingsRefresh={() => setLocalBookings(loadLocalBookings())}
+            onSignIn={handleSignIn}
+            onNavigate={navigateToPage}
+            onUseBookingUrlInAds={(url) => {
+              updateSetting('booking', url);
+              navigateToPage('campaigns');
+              setStatus(`Updated campaign Booking URL to ${url}`);
+            }}
+            onStatus={setStatus}
+          />
+        </main>
+      )}
+
+      {activePage === 'support' && (
+        <main className="max-w-[1200px] w-full mx-auto my-6 px-5 flex-1">
+          <SupportPage
+            user={user}
+            inquiries={mergedInquiries}
+            onInquiriesRefresh={() => setLocalInquiries(loadLocalInquiries())}
+            onNavigate={navigateToPage}
+            onStatus={setStatus}
+          />
+        </main>
+      )}
+
+      {activePage === 'contact' && (
+        <main className="max-w-[1200px] w-full mx-auto my-6 px-5 flex-1">
+          <ContactPage
+            user={user}
+            inquiries={mergedInquiries}
+            onInquiriesRefresh={() => setLocalInquiries(loadLocalInquiries())}
+            onNavigate={navigateToPage}
+            onStatus={setStatus}
+          />
+        </main>
+      )}
+
+      {activePage === 'terms' && (
+        <main className="max-w-[1200px] w-full mx-auto my-6 px-5 flex-1">
+          <TermsPage onNavigate={navigateToPage} onStatus={setStatus} />
+        </main>
+      )}
+
+      {activePage === 'privacy' && (
+        <main className="max-w-[1200px] w-full mx-auto my-6 px-5 flex-1">
+          <PrivacyPage onNavigate={navigateToPage} onStatus={setStatus} />
         </main>
       )}
 
@@ -903,12 +1101,25 @@ export const App: React.FC = () => {
             className={inputClass}
           />
 
-          <label
-            htmlFor="booking"
-            className="block text-xs font-bold text-[#241436] dark:text-slate-200 mt-3.5 mb-1.5"
-          >
-            Booking page
-          </label>
+          <div className="flex items-center justify-between mt-3.5 mb-1.5">
+            <label
+              htmlFor="booking"
+              className="block text-xs font-bold text-[#241436] dark:text-slate-200 m-0"
+            >
+              Booking page
+            </label>
+            <button
+              type="button"
+              onClick={() => {
+                const localBookingUrl = getFullPageUrl('booking');
+                updateSetting('booking', localBookingUrl);
+                setStatus(`Set booking destination to ${localBookingUrl}`);
+              }}
+              className="text-[11px] font-bold text-[#56249a] dark:text-[#c084fc] underline cursor-pointer"
+            >
+              Use /booking page
+            </button>
+          </div>
           <input
             id="booking"
             value={settings.booking}
@@ -1001,7 +1212,7 @@ export const App: React.FC = () => {
               clearAccessToken();
               setAccessToken(null);
             }}
-            onOpenLogoStudio={() => setActivePage('brand')}
+            onOpenLogoStudio={() => navigateToPage('brand')}
           />
 
           {/* 1-Click Cloud & Local Export Bar */}
@@ -1348,7 +1559,7 @@ export const App: React.FC = () => {
                         onClick={() => {
                           setHandoffImageTitle(`Ad ${ad.number} — ${ad.headline}`);
                           setHandoffImagePrompt(ad.image_prompt);
-                          setActivePage('images');
+                          navigateToPage('images');
                           setStatus(`Loaded Ad ${ad.number} prompt into the AI Image Creator.`);
                         }}
                         className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] text-white font-bold text-xs px-3.5 py-2 rounded-xl hover:opacity-95 whitespace-nowrap shrink-0 cursor-pointer"
@@ -1362,7 +1573,7 @@ export const App: React.FC = () => {
                         onClick={() => {
                           setHandoffVideoTitle(`Video Ad ${ad.number} — ${ad.headline}`);
                           setHandoffVideoPrompt(ad.video_script);
-                          setActivePage('videos');
+                          navigateToPage('videos');
                           setStatus(`Loaded Ad ${ad.number} video script into the AI Video Ad Creator.`);
                         }}
                         className="inline-flex items-center gap-1.5 bg-[#047857] dark:bg-[#059669] hover:bg-[#065f46] text-white font-bold text-xs px-3.5 py-2 rounded-xl whitespace-nowrap shrink-0 cursor-pointer"
@@ -1380,18 +1591,52 @@ export const App: React.FC = () => {
       </main>
       )}
 
-      <footer className="max-w-[1200px] w-full mx-auto px-5 pt-3 pb-8 text-[#766684] dark:text-slate-400 text-xs leading-relaxed tabular-nums print:hidden">
-        Tidyups Cleaning Service Inc. · Edmonton, AB · 780-718-5092 ·{' '}
-        <a
-          href="https://tidyupscleaning.com"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="underline hover:text-[#56249a] dark:hover:text-[#c084fc]"
-        >
-          tidyupscleaning.com
-        </a>
-        <br />
-        Campaign drafts require review before publishing. Promotions apply only when approved by Tidyups Cleaning Service Inc.
+      <footer className="max-w-[1200px] w-full mx-auto px-5 pt-5 pb-8 border-t border-[#e8e1ef] dark:border-[#221936] text-[#766684] dark:text-slate-400 text-xs leading-relaxed tabular-nums print:hidden space-y-2.5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            Tidyups Cleaning Service Inc. · Edmonton, AB · 780-718-5092 ·{' '}
+            <a
+              href="mailto:cleaningserviceyeg@gmail.com"
+              className="underline hover:text-[#56249a] dark:hover:text-[#c084fc]"
+            >
+              cleaningserviceyeg@gmail.com
+            </a>
+          </div>
+
+          <nav aria-label="Footer navigation" className="flex flex-wrap items-center gap-3 font-semibold">
+            {(
+              [
+                { key: 'campaigns', label: 'Ads Studio' },
+                { key: 'booking', label: 'Booking' },
+                { key: 'support', label: 'Support' },
+                { key: 'contact', label: 'Contact' },
+                { key: 'terms', label: 'Terms & Conditions' },
+                { key: 'privacy', label: 'Privacy Policy' },
+              ] as Array<{ key: AppPage; label: string }>
+            ).map((link, idx) => (
+              <React.Fragment key={link.key}>
+                {idx > 0 && <span aria-hidden="true">·</span>}
+                <a
+                  href={PAGE_PATHS[link.key]}
+                  onClick={(e) => {
+                    if (!e.metaKey && !e.ctrlKey && e.button === 0) {
+                      e.preventDefault();
+                      navigateToPage(link.key);
+                    }
+                  }}
+                  className={`underline hover:text-[#56249a] dark:hover:text-white ${
+                    activePage === link.key ? 'text-[#56249a] dark:text-white font-bold' : ''
+                  }`}
+                >
+                  {link.label}
+                </a>
+              </React.Fragment>
+            ))}
+          </nav>
+        </div>
+        <p className="m-0">
+          Campaign drafts require review before publishing. Promotions apply only when approved by Tidyups Cleaning Service Inc.
+        </p>
       </footer>
 
       <ConfirmModal

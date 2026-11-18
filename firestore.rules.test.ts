@@ -240,4 +240,86 @@ describe('Tidyups Hardened Firestore Security Rules — Dirty Dozen TDD', () => 
     await assertFails(getDoc(doc(bob.firestore(), 'creativeAssets', 'asset_1')));
     await assertFails(getDocs(collection(bob.firestore(), 'creativeAssets')));
   });
+
+  it('13. enforces PII isolation and Terminal State Locking on /bookingRequests and /inquiries', async () => {
+    const alice = testEnv.authenticatedContext('user_a', { email_verified: true });
+    const bob = testEnv.authenticatedContext('user_b', { email_verified: true });
+
+    await assertSucceeds(
+      setDoc(doc(alice.firestore(), 'bookingRequests', 'book_1'), {
+        ownerId: 'user_a',
+        referenceCode: 'TU-849201',
+        service: 'moveout',
+        frequency: 'once',
+        bedrooms: 3,
+        bathrooms: 2,
+        sqftTier: '1800to2600',
+        addOnsSummary: 'Inside Oven, Inside Fridge',
+        preferredDate: '2026-11-28',
+        arrivalWindow: 'morning',
+        estimatedTotalCad: 389,
+        customerName: 'Alex Mercer',
+        customerEmail: 'alex@example.com',
+        customerPhone: '780-555-0192',
+        serviceAddress: '10420 Jasper Ave, Edmonton, AB',
+        notes: 'Buzz code 402',
+        status: 'requested',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    // PII Blanket Test: non-owner cannot read booking PII
+    await assertFails(getDoc(doc(bob.firestore(), 'bookingRequests', 'book_1')));
+
+    // Cancel booking (terminal state)
+    await assertSucceeds(
+      updateDoc(doc(alice.firestore(), 'bookingRequests', 'book_1'), {
+        status: 'cancelled',
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    // Terminal State Lock: cannot reopen a cancelled booking
+    await assertFails(
+      updateDoc(doc(alice.firestore(), 'bookingRequests', 'book_1'), {
+        status: 'confirmed',
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    // Inquiry create + terminal state lock
+    await assertSucceeds(
+      setDoc(doc(alice.firestore(), 'inquiries', 'inq_1'), {
+        ownerId: 'user_a',
+        ticketCode: 'SUP-492018',
+        channel: 'support',
+        category: 'guarantee',
+        name: 'Alex Mercer',
+        email: 'alex@example.com',
+        phone: '780-555-0192',
+        bookingRef: 'TU-849201',
+        message: 'Question about 24-hour move-out walkthrough touch-up.',
+        status: 'open',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    await assertFails(getDoc(doc(bob.firestore(), 'inquiries', 'inq_1')));
+
+    await assertSucceeds(
+      updateDoc(doc(alice.firestore(), 'inquiries', 'inq_1'), {
+        status: 'resolved',
+        updatedAt: serverTimestamp(),
+      })
+    );
+
+    await assertFails(
+      updateDoc(doc(alice.firestore(), 'inquiries', 'inq_1'), {
+        status: 'open',
+        updatedAt: serverTimestamp(),
+      })
+    );
+  });
 });

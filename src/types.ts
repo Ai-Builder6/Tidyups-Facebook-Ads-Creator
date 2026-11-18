@@ -24,7 +24,73 @@ export interface FirestoreErrorInfo {
   };
 }
 
-export type AppPage = 'campaigns' | 'images' | 'videos' | 'brand';
+export type AppPage =
+  | 'campaigns'
+  | 'images'
+  | 'videos'
+  | 'brand'
+  | 'booking'
+  | 'support'
+  | 'terms'
+  | 'contact'
+  | 'privacy';
+
+export type BookingFrequency = 'once' | 'weekly' | 'biweekly' | 'monthly';
+export type SqftTier = 'under1000' | '1000to1800' | '1800to2600' | 'over2600';
+export type ArrivalWindow = 'morning' | 'midday' | 'afternoon';
+export type BookingStatus = 'requested' | 'confirmed' | 'cancelled';
+
+export interface BookingRequestRecord {
+  id: string;
+  ownerId: string;
+  referenceCode: string;
+  service: ServiceKey;
+  frequency: BookingFrequency;
+  bedrooms: number;
+  bathrooms: number;
+  sqftTier: SqftTier;
+  addOnsSummary: string;
+  preferredDate: string;
+  arrivalWindow: ArrivalWindow;
+  estimatedTotalCad: number;
+  customerName: string;
+  customerEmail: string;
+  customerPhone: string;
+  serviceAddress: string;
+  notes: string;
+  status: BookingStatus;
+  createdAtMillis: number;
+  updatedAtMillis: number;
+  syncedToCloud?: boolean;
+}
+
+export type InquiryChannel = 'contact' | 'support';
+export type InquiryCategory =
+  | 'quote'
+  | 'commercial'
+  | 'reschedule'
+  | 'guarantee'
+  | 'billing'
+  | 'workspace'
+  | 'general';
+export type InquiryStatus = 'open' | 'resolved';
+
+export interface CustomerInquiryRecord {
+  id: string;
+  ownerId: string;
+  ticketCode: string;
+  channel: InquiryChannel;
+  category: InquiryCategory;
+  name: string;
+  email: string;
+  phone: string;
+  bookingRef: string;
+  message: string;
+  status: InquiryStatus;
+  createdAtMillis: number;
+  updatedAtMillis: number;
+  syncedToCloud?: boolean;
+}
 
 export type ServiceKey =
   | 'moveout'
@@ -174,4 +240,22 @@ export const BLUEPRINT_LIMITS = {
   durationLabelMax: 24,
   interactionIdMax: 160,
   driveWebViewLinkMax: 400,
+  referenceCodeMin: 9,
+  referenceCodeMax: 16,
+  referenceCodeRegex: /^TU-[A-Z0-9]{6,12}$/,
+  ticketCodeMin: 10,
+  ticketCodeMax: 16,
+  ticketCodeRegex: /^SUP-[A-Z0-9]{6,12}$/,
+  customerNameMin: 2,
+  customerNameMax: 100,
+  customerEmailMin: 5,
+  customerEmailMax: 160,
+  serviceAddressMin: 5,
+  serviceAddressMax: 240,
+  addOnsSummaryMax: 240,
+  preferredDateMin: 8,
+  preferredDateMax: 20,
+  bookingRefMax: 32,
+  inquiryMessageMin: 5,
+  inquiryMessageMax: 1500,
 } as const;
