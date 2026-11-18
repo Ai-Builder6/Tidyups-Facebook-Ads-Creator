@@ -1,0 +1,8 @@
+{
+  "name": "Tidyups | Facebook Ads Creator",
+  "description": "Generate and export Facebook and Instagram cleaning service ads for Tidyups Cleaning Service in Edmonton.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
