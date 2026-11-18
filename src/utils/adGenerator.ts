@@ -1,14 +1,14 @@
-import { CampaignSettings, GeneratedAd, ServiceKey, ToneKey } from '../types';
+import { CampaignSettings, CreativeFormat, GeneratedAd, ServiceKey, ToneKey } from '../types';
 
-interface ServiceTemplate {
+export interface ServiceDefinition {
   name: string;
   topics: string[];
   benefits: string[];
   head: string[];
-  scenePrompt: string;
+  scene: string;
 }
 
-export const SERVICE_DATA: Record<ServiceKey, ServiceTemplate> = {
+export const SERVICE_DATA: Record<ServiceKey, ServiceDefinition> = {
   moveout: {
     name: 'Move-Out Cleaning',
     topics: [
@@ -32,7 +32,7 @@ export const SERVICE_DATA: Record<ServiceKey, ServiceTemplate> = {
       'Edmonton Move-Out Cleaners',
       'Get Your Move-Out Quote',
     ],
-    scenePrompt: 'Modern empty Canadian home, cleaner detailing kitchen cabinets',
+    scene: 'Modern empty Canadian home, cleaner detailing kitchen cabinets',
   },
   deep: {
     name: 'Deep Cleaning',
@@ -57,7 +57,7 @@ export const SERVICE_DATA: Record<ServiceKey, ServiceTemplate> = {
       'Refresh Your Home',
       'Book an Edmonton Deep Clean',
     ],
-    scenePrompt: 'Modern bathroom with professional cleaner detailing glass shower',
+    scene: 'Modern bathroom with professional cleaner detailing glass shower',
   },
   standard: {
     name: 'House Cleaning',
@@ -82,7 +82,7 @@ export const SERVICE_DATA: Record<ServiceKey, ServiceTemplate> = {
       'Leave the Mess to Us',
       'House Cleaners Edmonton',
     ],
-    scenePrompt: 'Bright Canadian living room with professional cleaner vacuuming',
+    scene: 'Bright Canadian living room with professional cleaner vacuuming',
   },
   movein: {
     name: 'Move-In Cleaning',
@@ -107,7 +107,7 @@ export const SERVICE_DATA: Record<ServiceKey, ServiceTemplate> = {
       'Fresh Start Cleaning',
       'Book Move-In Cleaners',
     ],
-    scenePrompt: 'Pristine unfurnished kitchen with cleaner wiping counters',
+    scene: 'Pristine unfurnished kitchen with cleaner wiping counters',
   },
   recurring: {
     name: 'Recurring House Cleaning',
@@ -132,7 +132,7 @@ export const SERVICE_DATA: Record<ServiceKey, ServiceTemplate> = {
       'Recurring Cleaners Edmonton',
       'Book a Cleaning Routine',
     ],
-    scenePrompt: 'Warm lived-in family home, professional cleaner mopping floors',
+    scene: 'Warm lived-in family home, professional cleaner mopping floors',
   },
   commercial: {
     name: 'Office & Commercial Cleaning',
@@ -157,7 +157,7 @@ export const SERVICE_DATA: Record<ServiceKey, ServiceTemplate> = {
       'Edmonton Office Cleaners',
       'Book Business Cleaning',
     ],
-    scenePrompt: 'Modern office reception with professional cleaner wiping desks',
+    scene: 'Modern office reception with professional cleaner wiping desks',
   },
   airbnb: {
     name: 'Airbnb & Turnover Cleaning',
@@ -182,7 +182,7 @@ export const SERVICE_DATA: Record<ServiceKey, ServiceTemplate> = {
       'Edmonton Airbnb Turnovers',
       'Book Rental Cleaning',
     ],
-    scenePrompt: 'Beautiful guest bedroom in short-term rental being prepared by cleaner',
+    scene: 'Beautiful guest bedroom in short-term rental being prepared by cleaner',
   },
 };
 
@@ -194,59 +194,73 @@ export const TONE_LABELS: Record<ToneKey, string> = {
   local: 'Edmonton local',
 };
 
+export const FORMAT_LABELS: Record<CreativeFormat, string> = {
+  '1:1': 'Square 1:1',
+  '4:5': 'Feed 4:5',
+  '9:16': 'Reel / Story 9:16',
+  '16:9': 'Landscape 16:9',
+};
+
+export const DEFAULT_SETTINGS: CampaignSettings = {
+  title: 'Move-Out Cleaning Campaign',
+  service: 'moveout',
+  tone: 'trust',
+  count: 5,
+  format: '1:1',
+  offer: '',
+  area: 'Edmonton, Alberta + 20 km',
+  booking: 'https://app.tidyupscleaning.com/booking',
+  phone: '780-718-5092',
+  notes: '',
+};
+
 function angleCopy(tone: ToneKey): string {
-  return {
+  const map: Record<ToneKey, string> = {
     trust: 'Professional cleaning that pays attention to the details.',
     urgent: 'Planning a clean soon? Request your quote today.',
     relief: 'Enjoy more time for what matters and leave the mess to us.',
     premium: 'Thoughtful details and a polished finish for your space.',
     local: 'Proudly serving Edmonton and surrounding communities.',
-  }[tone];
+  };
+  return map[tone];
+}
+
+function voiceover(service: ServiceKey, index: number): string {
+  return (
+    SERVICE_DATA[service].topics[index % 5] +
+    ' Tidyups Cleaning Service helps Edmonton homes and businesses shine. Leave the mess to us. Book your cleaning today!'
+  ).replace(/\s+/g, ' ');
 }
 
 function buildCaption(s: CampaignSettings, index: number): string {
   const d = SERVICE_DATA[s.service];
   const topic = d.topics[index % d.topics.length];
   const benefit = d.benefits[(index * 3 + Math.floor(index / 5)) % d.benefits.length];
-  const suffix = s.offer.trim() ? `\n\n${s.offer.trim()}.` : '';
-  const targetArea = s.area.trim() || 'the Edmonton area';
-
+  const offerLine = s.offer.trim() ? `\n\n${s.offer.trim()}.` : '';
   return (
     `${topic}\n\n` +
-    `Tidyups Cleaning Service offers professional ${d.name.toLowerCase()} in ${targetArea}, including ${benefit}. ` +
-    `${angleCopy(s.tone)}${suffix}\n\n` +
+    `Tidyups Cleaning Service offers professional ${d.name.toLowerCase()} in the ${s.area.trim() || 'Edmonton'} area, including ${benefit}. ${angleCopy(s.tone)}${offerLine}\n\n` +
     `Request a quote or book online: ${s.booking.trim()}\n` +
     `Call or text: ${s.phone.trim()}`
-  );
-}
-
-function buildVoiceover(s: CampaignSettings, index: number): string {
-  const topic = SERVICE_DATA[s.service].topics[index % 5];
-  return `${topic} Tidyups Cleaning Service helps Edmonton homes and businesses shine. Leave the mess to us. Book your cleaning today!`.replace(
-    /\s+/g,
-    ' '
   );
 }
 
 export function makeAd(s: CampaignSettings, index: number): GeneratedAd {
   const d = SERVICE_DATA[s.service];
   const headline = d.head[index % d.head.length];
-  const primary_text = buildCaption(s, index);
-  const offerPrefix = s.offer.trim() ? `${s.offer.trim()} • ` : '';
-  const description = `${offerPrefix}Edmonton & surrounding areas. Request a cleaning quote.`;
-  const extraNotes = s.notes.trim() ? ` ${s.notes.trim()}` : '';
-
-  const image_prompt =
-    `Photorealistic premium Facebook/Instagram advertisement for Tidyups Cleaning Service Inc., Edmonton, Alberta. ` +
-    `${d.scenePrompt}. Brand style: purple, pink and white; cleaner wearing clean purple polo, natural daylight, ` +
-    `premium commercial photography; authentic home, realistic equipment, clean composition. Frame ${s.format}. ` +
-    `Do not invent or distort logos, lettering, discounts or company claims. Leave negative space for manually added exact logo and CTA.${extraNotes}`;
-
-  const video_script =
+  const primary = buildCaption(s, index);
+  const areaLabel = s.area.trim() || 'Edmonton & surrounding areas';
+  const description = `${s.offer.trim() ? `${s.offer.trim()} • ` : ''}${areaLabel}. Request a cleaning quote.`;
+  const notesSuffix = s.notes.trim() ? ` ${s.notes.trim()}` : '';
+  const prompt =
+    `Photorealistic premium Facebook/Instagram advertisement for Tidyups Cleaning Service Inc., Edmonton, Alberta. ${d.scene}. ` +
+    `Brand style: purple, pink and white; cleaner wearing clean purple polo, natural daylight, premium commercial photography; authentic home, realistic equipment, clean composition. ` +
+    `Frame ${s.format}. Do not invent or distort logos, lettering, discounts or company claims. Leave negative space for manually added exact logo and CTA.${notesSuffix}`;
+  const script =
     `0–3s: Show the cleaning need in a realistic Edmonton home or workplace.\n` +
     `3–7s: Smooth close-up shots of professionals performing ${d.name.toLowerCase()}.\n` +
     `7–10s: Reveal a bright, beautifully clean finished space.\n` +
-    `Voiceover: '${buildVoiceover(s, index)}'\n` +
+    `Voiceover: '${voiceover(s.service, index)}'\n` +
     `End card: 'Tidyups Cleaning Service | Edmonton | ${s.phone.trim()} | Book Online'\n` +
     `Format: ${s.format}; add official company bunny logo in editing. Use licensed music only.`;
 
@@ -256,25 +270,25 @@ export function makeAd(s: CampaignSettings, index: number): GeneratedAd {
     service: d.name,
     format: s.format,
     headline,
-    primary_text,
+    primary_text: primary,
     description,
     cta: 'Book Now',
     destination_url: s.booking.trim(),
-    image_prompt,
-    video_script,
+    image_prompt: prompt,
+    video_script: script,
   };
 }
 
 export function generateAds(settings: CampaignSettings): GeneratedAd[] {
-  const count = Math.max(1, Math.min(10, Number(settings.count) || 5));
-  return Array.from({ length: count }, (_, idx) => makeAd(settings, idx));
+  const safeCount = Math.min(Math.max(Number(settings.count) || 5, 1), 10);
+  return Array.from({ length: safeCount }, (_, i) => makeAd(settings, i));
 }
 
 function csvQuote(value: unknown): string {
   return `"${String(value ?? '').replace(/"/g, '""')}"`;
 }
 
-export function serializeAdsToCsv(ads: GeneratedAd[]): string {
+export function adsToCsv(ads: GeneratedAd[]): string {
   const keys: (keyof GeneratedAd)[] = [
     'number',
     'service',
@@ -287,21 +301,48 @@ export function serializeAdsToCsv(ads: GeneratedAd[]): string {
     'image_prompt',
     'video_script',
   ];
-  const header = keys.join(',');
-  const rows = ads.map((ad) => keys.map((k) => csvQuote(ad[k])).join(','));
-  return [header, ...rows].join('\r\n');
+  return [
+    keys.join(','),
+    ...ads.map((ad) => keys.map((k) => csvQuote(ad[k])).join(',')),
+  ].join('\r\n');
 }
 
-export function serializeAdsToJson(settings: CampaignSettings, ads: GeneratedAd[]): string {
+export function adsToJson(ads: GeneratedAd[], campaignTitle?: string): string {
   return JSON.stringify(
     {
       brand: 'Tidyups Cleaning Service Inc.',
-      campaign_title: settings.title,
+      campaign: campaignTitle || 'Tidyups Campaign',
       generated_at: new Date().toISOString(),
-      settings,
       ads,
     },
     null,
     2
   );
+}
+
+export function formatAllAdsPlainText(ads: GeneratedAd[]): string {
+  return ads
+    .map((a) =>
+      [
+        `AD ${a.number}`,
+        a.headline,
+        a.primary_text,
+        a.description,
+        a.image_prompt,
+        a.video_script,
+      ].join('\n\n')
+    )
+    .join('\n\n---\n\n');
+}
+
+export function triggerBrowserDownload(fileName: string, body: string, mimeType: string): void {
+  const blob = new Blob([body], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 500);
 }

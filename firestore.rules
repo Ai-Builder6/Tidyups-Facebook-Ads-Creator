@@ -180,7 +180,7 @@ service cloud.firestore {
         && data.headline.size() >= 1
         && data.headline.size() <= 150
         && data.primaryText is string
-        && data.primaryText.size() <= 1
+        && data.primaryText.size() >= 1
         && data.primaryText.size() <= 2000
         && data.description is string
         && data.description.size() >= 1
