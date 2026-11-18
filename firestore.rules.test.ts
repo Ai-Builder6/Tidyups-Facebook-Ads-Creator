@@ -60,6 +60,26 @@ function makeValidAdPayload(ownerId: string, campaignId: string) {
   };
 }
 
+function makeValidCreativeAssetPayload(ownerId: string) {
+  return {
+    ownerId,
+    category: 'ad-image',
+    title: 'Move-Out Kitchen Sparkle',
+    prompt: 'Bright modern Edmonton kitchen gleaming after deep cleaning.',
+    service: 'moveout',
+    aspectRatio: '1:1',
+    modelUsed: 'gemini-3.1-flash-lite-image',
+    previewDataUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==',
+    svgMarkup: '',
+    durationLabel: '',
+    interactionId: '',
+    driveFileId: '',
+    driveWebViewLink: '',
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
 describe('Tidyups Hardened Firestore Security Rules — Dirty Dozen TDD', () => {
   beforeAll(async () => {
     testEnv = await initializeTestEnvironment({
@@ -78,31 +98,41 @@ describe('Tidyups Hardened Firestore Security Rules — Dirty Dozen TDD', () => 
     await testEnv.cleanup();
   });
 
-  it('allows verified owner to create and read their own campaign', async () => {
+  it('allows verified owner to create and read their own campaign and creative portfolio asset', async () => {
     const alice = testEnv.authenticatedContext('user_a', { email_verified: true });
     const db = alice.firestore();
     await assertSucceeds(setDoc(doc(db, 'campaigns', 'camp_1'), makeValidCampaignPayload('user_a')));
     await assertSucceeds(getDoc(doc(db, 'campaigns', 'camp_1')));
+    await assertSucceeds(
+      setDoc(doc(db, 'creativeAssets', 'asset_1'), makeValidCreativeAssetPayload('user_a'))
+    );
+    await assertSucceeds(getDoc(doc(db, 'creativeAssets', 'asset_1')));
   });
 
-  it('1. denies Identity Spoofing on Campaign create', async () => {
+  it('1. denies Identity Spoofing on Campaign and CreativeAsset create', async () => {
     const alice = testEnv.authenticatedContext('user_a', { email_verified: true });
     const db = alice.firestore();
     await assertFails(setDoc(doc(db, 'campaigns', 'camp_1'), makeValidCampaignPayload('user_b')));
+    await assertFails(
+      setDoc(doc(db, 'creativeAssets', 'asset_1'), makeValidCreativeAssetPayload('user_b'))
+    );
   });
 
   it('2. denies Unverified Email write', async () => {
     const unverified = testEnv.authenticatedContext('user_a', { email_verified: false });
     const db = unverified.firestore();
     await assertFails(setDoc(doc(db, 'campaigns', 'camp_1'), makeValidCampaignPayload('user_a')));
+    await assertFails(
+      setDoc(doc(db, 'creativeAssets', 'asset_1'), makeValidCreativeAssetPayload('user_a'))
+    );
   });
 
   it('3. denies Shadow / Ghost Field injection on create', async () => {
     const alice = testEnv.authenticatedContext('user_a', { email_verified: true });
     const db = alice.firestore();
     await assertFails(
-      setDoc(doc(db, 'campaigns', 'camp_1'), {
-        ...makeValidCampaignPayload('user_a'),
+      setDoc(doc(db, 'creativeAssets', 'asset_1'), {
+        ...makeValidCreativeAssetPayload('user_a'),
         isAdmin: true,
       })
     );
@@ -111,22 +141,26 @@ describe('Tidyups Hardened Firestore Security Rules — Dirty Dozen TDD', () => 
   it('4. denies Shadow / Ghost Field injection on update', async () => {
     const alice = testEnv.authenticatedContext('user_a', { email_verified: true });
     const db = alice.firestore();
-    await assertSucceeds(setDoc(doc(db, 'campaigns', 'camp_1'), makeValidCampaignPayload('user_a')));
+    await assertSucceeds(
+      setDoc(doc(db, 'creativeAssets', 'asset_1'), makeValidCreativeAssetPayload('user_a'))
+    );
     await assertFails(
-      updateDoc(doc(db, 'campaigns', 'camp_1'), {
+      updateDoc(doc(db, 'creativeAssets', 'asset_1'), {
         isVerified: true,
         updatedAt: serverTimestamp(),
       })
     );
   });
 
-  it('5. denies Immutable Owner mutation on update', async () => {
+  it('5. denies Immutable Owner or Category mutation on update', async () => {
     const alice = testEnv.authenticatedContext('user_a', { email_verified: true });
     const db = alice.firestore();
-    await assertSucceeds(setDoc(doc(db, 'campaigns', 'camp_1'), makeValidCampaignPayload('user_a')));
+    await assertSucceeds(
+      setDoc(doc(db, 'creativeAssets', 'asset_1'), makeValidCreativeAssetPayload('user_a'))
+    );
     await assertFails(
-      updateDoc(doc(db, 'campaigns', 'camp_1'), {
-        ownerId: 'user_b',
+      updateDoc(doc(db, 'creativeAssets', 'asset_1'), {
+        category: 'video-ad',
         updatedAt: serverTimestamp(),
       })
     );
@@ -147,7 +181,7 @@ describe('Tidyups Hardened Firestore Security Rules — Dirty Dozen TDD', () => 
     const alice = testEnv.authenticatedContext('user_a', { email_verified: true });
     const db = alice.firestore();
     await assertFails(
-      setDoc(doc(db, 'campaigns', 'bad$id!spaces'), makeValidCampaignPayload('user_a'))
+      setDoc(doc(db, 'creativeAssets', 'bad$id!spaces'), makeValidCreativeAssetPayload('user_a'))
     );
   });
 
@@ -155,20 +189,20 @@ describe('Tidyups Hardened Firestore Security Rules — Dirty Dozen TDD', () => 
     const alice = testEnv.authenticatedContext('user_a', { email_verified: true });
     const db = alice.firestore();
     await assertFails(
-      setDoc(doc(db, 'campaigns', 'camp_1'), {
-        ...makeValidCampaignPayload('user_a'),
+      setDoc(doc(db, 'creativeAssets', 'asset_1'), {
+        ...makeValidCreativeAssetPayload('user_a'),
         title: 'A'.repeat(5000),
       })
     );
   });
 
-  it('9. denies Insecure HTTP Booking URL', async () => {
+  it('9. denies Insecure HTTP Booking or Drive URL', async () => {
     const alice = testEnv.authenticatedContext('user_a', { email_verified: true });
     const db = alice.firestore();
     await assertFails(
-      setDoc(doc(db, 'campaigns', 'camp_1'), {
-        ...makeValidCampaignPayload('user_a'),
-        bookingUrl: 'http://insecure.example.com/booking',
+      setDoc(doc(db, 'creativeAssets', 'asset_1'), {
+        ...makeValidCreativeAssetPayload('user_a'),
+        driveWebViewLink: 'http://insecure.example.com/file',
       })
     );
   });
@@ -196,14 +230,14 @@ describe('Tidyups Hardened Firestore Security Rules — Dirty Dozen TDD', () => 
     );
   });
 
-  it('12. denies Unauthorized Blanket List and Cross-Tenant Read', async () => {
+  it('12. denies Unauthorized Blanket List and Cross-Tenant Portfolio Read', async () => {
     const alice = testEnv.authenticatedContext('user_a', { email_verified: true });
     await assertSucceeds(
-      setDoc(doc(alice.firestore(), 'campaigns', 'camp_1'), makeValidCampaignPayload('user_a'))
+      setDoc(doc(alice.firestore(), 'creativeAssets', 'asset_1'), makeValidCreativeAssetPayload('user_a'))
     );
 
     const bob = testEnv.authenticatedContext('user_b', { email_verified: true });
-    await assertFails(getDoc(doc(bob.firestore(), 'campaigns', 'camp_1')));
-    await assertFails(getDocs(collection(bob.firestore(), 'campaigns')));
+    await assertFails(getDoc(doc(bob.firestore(), 'creativeAssets', 'asset_1')));
+    await assertFails(getDocs(collection(bob.firestore(), 'creativeAssets')));
   });
 });

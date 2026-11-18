@@ -1,9 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { User } from 'firebase/auth';
-import { Check, Copy, Download, Edit3, LogOut, Moon, Sparkles, Sun } from 'lucide-react';
+import {
+  Check,
+  Copy,
+  Download,
+  Edit3,
+  ExternalLink,
+  FileSpreadsheet,
+  Film,
+  FolderUp,
+  Image as ImageIcon,
+  LogOut,
+  Moon,
+  Sparkles,
+  Sun,
+} from 'lucide-react';
 import { ConfirmModal } from './components/ConfirmModal';
 import { GoogleSignInButton } from './components/GoogleSignInButton';
+import { ImageCreatorPage } from './components/ImageCreatorPage';
+import { LogoIconStudioPage } from './components/LogoIconStudioPage';
 import { ThemeMode, TidyupsLogoLockup } from './components/TidyupsLogo';
+import { VideoCreatorPage } from './components/VideoCreatorPage';
 import { HubTab, WorkspaceHub } from './components/WorkspaceHub';
 import { clearAccessToken, googleSignIn, initAuth, logout } from './firebase';
 import {
@@ -14,13 +31,26 @@ import {
   subscribeToUserCampaigns,
   updateCampaignWorkspaceLinks,
 } from './services/campaignStore';
+import { deleteCachedFullMediaFromBrowser } from './services/creativeApi';
 import {
+  deleteCreativeAssetFromFirestore,
+  subscribeToPortfolioAssets,
+} from './services/portfolioStore';
+import {
+  createNewCampaignSpreadsheet,
+  LeadsAdsFolderBundleResult,
+  uploadLeadsAdsFolderBundle,
+} from './services/workspaceApi';
+import {
+  AppPage,
   BLUEPRINT_LIMITS,
   CampaignSettings,
+  CreativeAsset,
   CreativeFormat,
   GeneratedAd,
   PendingConfirmation,
   SavedCampaign,
+  SheetMetadata,
   ServiceKey,
   ToneKey,
 } from './types';
@@ -81,6 +111,7 @@ function loadInitialSettings(): CampaignSettings {
 
 export const App: React.FC = () => {
   const [theme, setTheme] = useState<ThemeMode>(loadInitialTheme);
+  const [activePage, setActivePage] = useState<AppPage>('campaigns');
   const [hubTab, setHubTab] = useState<HubTab>('cloud');
   const [settings, setSettings] = useState<CampaignSettings>(loadInitialSettings);
   const [ads, setAds] = useState<GeneratedAd[]>([]);
@@ -88,14 +119,25 @@ export const App: React.FC = () => {
   const [status, setStatus] = useState<string>('Ready to generate your campaign.');
   const [copiedBadge, setCopiedBadge] = useState<string | null>(null);
 
+  // Handoff state from Campaign Ads -> Image / Video Creators
+  const [handoffImagePrompt, setHandoffImagePrompt] = useState<string>('');
+  const [handoffImageTitle, setHandoffImageTitle] = useState<string>('');
+  const [handoffVideoPrompt, setHandoffVideoPrompt] = useState<string>('');
+  const [handoffVideoTitle, setHandoffVideoTitle] = useState<string>('');
+
   // Auth & Workspace token state
   const [authReady, setAuthReady] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
-  // Firestore campaigns & Workspace links
+  // 1-Click Google Workspace export state
+  const [workspaceBusyAction, setWorkspaceBusyAction] = useState<string | null>(null);
+  const [lastLeadsBundle, setLastLeadsBundle] = useState<LeadsAdsFolderBundleResult | null>(null);
+
+  // Firestore campaigns, creative portfolio & Workspace links
   const [savedCampaigns, setSavedCampaigns] = useState<SavedCampaign[]>([]);
+  const [portfolioAssets, setPortfolioAssets] = useState<CreativeAsset[]>([]);
   const [activeCampaignId, setActiveCampaignId] = useState<string | null>(null);
   const [links, setLinks] = useState<LinkedWorkspaceRefs>({
     linkedSheetId: '',
@@ -129,9 +171,10 @@ export const App: React.FC = () => {
   useEffect(() => {
     if (!authReady || !user) {
       setSavedCampaigns([]);
+      setPortfolioAssets([]);
       return;
     }
-    const unsub = subscribeToUserCampaigns(
+    const unsubCampaigns = subscribeToUserCampaigns(
       user.uid,
       (items) => {
         setSavedCampaigns(items);
@@ -140,7 +183,19 @@ export const App: React.FC = () => {
         setStatus(`Could not load saved campaigns: ${err.message}`);
       }
     );
-    return () => unsub();
+    const unsubPortfolio = subscribeToPortfolioAssets(
+      user.uid,
+      (assets) => {
+        setPortfolioAssets(assets);
+      },
+      (err) => {
+        setStatus(`Could not load creative portfolio: ${err.message}`);
+      }
+    );
+    return () => {
+      unsubCampaigns();
+      unsubPortfolio();
+    };
   }, [authReady, user]);
 
   const handleSignIn = async (): Promise<string | null> => {
@@ -166,6 +221,8 @@ export const App: React.FC = () => {
     setAccessToken(null);
     setActiveCampaignId(null);
     setSavedCampaigns([]);
+    setPortfolioAssets([]);
+    setLastLeadsBundle(null);
     setStatus('Signed out.');
   };
 
@@ -180,6 +237,25 @@ export const App: React.FC = () => {
       }
       return next;
     });
+  };
+
+  const ensureAdsGenerated = (): GeneratedAd[] | null => {
+    if (!/^https:\/\//i.test(settings.booking.trim())) {
+      setStatus('Please enter a secure booking URL beginning with https://');
+      return null;
+    }
+    if (ads.length > 0) {
+      return ads;
+    }
+    const nextAds = generateAds(settings);
+    setAds(nextAds);
+    setEditingAdIndex(null);
+    try {
+      localStorage.setItem(LOCAL_SETTINGS_KEY, JSON.stringify(settings));
+    } catch {
+      // ignore storage quota errors
+    }
+    return nextAds;
   };
 
   const handleGenerate = () => {
@@ -218,6 +294,93 @@ export const App: React.FC = () => {
     }, 1800);
   };
 
+  const handleLinksChange = (nextLinks: LinkedWorkspaceRefs) => {
+    setLinks(nextLinks);
+    if (activeCampaignId && user) {
+      void updateCampaignWorkspaceLinks(activeCampaignId, nextLinks).catch((err) => {
+        console.error('Failed to update campaign links:', err);
+      });
+    }
+  };
+
+  const handleWorkspaceError = (err: unknown) => {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message.startsWith('AUTH_EXPIRED:')) {
+      clearAccessToken();
+      setAccessToken(null);
+      setStatus('Google Workspace session expired. Click again to reconnect Google Workspace.');
+      return;
+    }
+    setStatus(message);
+  };
+
+  const handleSaveStyledGoogleSheet = async (): Promise<SheetMetadata | null> => {
+    const readyAds = ensureAdsGenerated();
+    if (!readyAds || readyAds.length === 0) return null;
+
+    const token = accessToken ?? (await handleSignIn());
+    if (!token) return null;
+
+    setWorkspaceBusyAction('styled-sheet');
+    setStatus('Creating Google Sheet with 4 bright colored tabs and styled headers…');
+    try {
+      const sheetTitle =
+        settings.title.trim() ||
+        `Tidyups — ${SERVICE_DATA[settings.service].name} (${new Date().toLocaleDateString()})`;
+      const created = await createNewCampaignSpreadsheet(token, sheetTitle, settings, readyAds);
+      const nextLinks: LinkedWorkspaceRefs = {
+        ...links,
+        linkedSheetId: created.spreadsheetId,
+        linkedSheetName: created.title,
+      };
+      handleLinksChange(nextLinks);
+      setHubTab('sheets');
+      setStatus(
+        `Saved ${readyAds.length} ad variations to colored-tab Google Sheet "${created.title}".`
+      );
+      return created;
+    } catch (err) {
+      handleWorkspaceError(err);
+      return null;
+    } finally {
+      setWorkspaceBusyAction(null);
+    }
+  };
+
+  const handleUploadLeadsAdsFolder = async (): Promise<LeadsAdsFolderBundleResult | null> => {
+    const readyAds = ensureAdsGenerated();
+    if (!readyAds || readyAds.length === 0) return null;
+
+    const token = accessToken ?? (await handleSignIn());
+    if (!token) return null;
+
+    setWorkspaceBusyAction('leads-folder');
+    setStatus(
+      'Uploading "Leads Ads" folder to Google Drive (colored-tab Sheet, CSV, JSON, Lead Form kit & logos)…'
+    );
+    try {
+      const bundle = await uploadLeadsAdsFolderBundle(token, settings, readyAds);
+      setLastLeadsBundle(bundle);
+      const nextLinks: LinkedWorkspaceRefs = {
+        linkedSheetId: bundle.sheet.spreadsheetId,
+        linkedSheetName: bundle.sheet.title,
+        linkedDriveFileId: bundle.folder.id,
+        linkedDriveFileName: bundle.folder.name,
+      };
+      handleLinksChange(nextLinks);
+      setHubTab('drive');
+      setStatus(
+        `Uploaded "${bundle.folder.name}" to Google Drive with colored-tab Google Sheet + ${bundle.uploadedFiles.length} campaign files.`
+      );
+      return bundle;
+    } catch (err) {
+      handleWorkspaceError(err);
+      return null;
+    } finally {
+      setWorkspaceBusyAction(null);
+    }
+  };
+
   const handleSaveCampaignToCloud = async (overrideLinks?: LinkedWorkspaceRefs) => {
     if (!user) {
       const token = await handleSignIn();
@@ -240,15 +403,6 @@ export const App: React.FC = () => {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setStatus(`Failed to save campaign: ${msg}`);
-    }
-  };
-
-  const handleLinksChange = (nextLinks: LinkedWorkspaceRefs) => {
-    setLinks(nextLinks);
-    if (activeCampaignId && user) {
-      void updateCampaignWorkspaceLinks(activeCampaignId, nextLinks).catch((err) => {
-        console.error('Failed to update campaign links:', err);
-      });
     }
   };
 
@@ -276,6 +430,7 @@ export const App: React.FC = () => {
         linkedDriveFileId: camp.linkedDriveFileId,
         linkedDriveFileName: camp.linkedDriveFileName,
       });
+      setLastLeadsBundle(null);
       setAds(loadedAds);
       setEditingAdIndex(null);
       setStatus(`Loaded saved campaign "${camp.title}" (${loadedAds.length} ads).`);
@@ -287,6 +442,7 @@ export const App: React.FC = () => {
 
   const handleNewCampaignDraft = () => {
     setActiveCampaignId(null);
+    setLastLeadsBundle(null);
     setLinks({
       linkedSheetId: '',
       linkedSheetName: '',
@@ -320,6 +476,27 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleRequestDeletePortfolioAsset = (asset: CreativeAsset) => {
+    setConfirmation({
+      title: `Delete "${asset.title}" from your Firestore Portfolio?`,
+      description: `This removes "${asset.title}" from your Firebase Firestore creative portfolio and local media cache. Any backed-up files in Google Drive will remain untouched.`,
+      confirmLabel: 'Delete Creative',
+      variant: 'danger',
+      onConfirm: async () => {
+        try {
+          await deleteCreativeAssetFromFirestore(asset.id);
+          await deleteCachedFullMediaFromBrowser(asset.id);
+          setStatus(`Deleted "${asset.title}" from your Firestore portfolio.`);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          setStatus(`Failed to delete portfolio creative: ${msg}`);
+        } finally {
+          setConfirmation(null);
+        }
+      },
+    });
+  };
+
   const updateSingleAdField = (
     index: number,
     field: keyof Pick<
@@ -336,47 +513,59 @@ export const App: React.FC = () => {
   const inputClass =
     'w-full p-3 border border-[#d8cde3] dark:border-[#35294f] rounded-xl bg-white dark:bg-[#120d1d] text-sm text-[#241436] dark:text-slate-100 placeholder:text-[#8b7e99] dark:placeholder:text-slate-500 focus-visible:outline-3 focus-visible:outline-[#e987cc] focus-visible:outline-offset-2';
 
+  const activeLeadsFolderUrl = lastLeadsBundle
+    ? lastLeadsBundle.folder.webViewLink ||
+      `https://drive.google.com/drive/folders/${lastLeadsBundle.folder.id}`
+    : links.linkedDriveFileId && links.linkedDriveFileName.startsWith('Leads Ads —')
+    ? `https://drive.google.com/drive/folders/${links.linkedDriveFileId}`
+    : '';
+
+  const activeStyledSheetUrl = lastLeadsBundle
+    ? lastLeadsBundle.sheet.spreadsheetUrl
+    : links.linkedSheetId
+    ? `https://docs.google.com/spreadsheets/d/${links.linkedSheetId}/edit`
+    : '';
+
   return (
     <div className="min-h-screen flex flex-col bg-[#f8f7fc] dark:bg-[#0f0b18] text-[#241436] dark:text-slate-100 transition-colors duration-150">
-      {/* Clean 3-Zone Top Bar */}
+      {/* Clean 3-Zone Top Bar Contract */}
       <header className="bg-white dark:bg-[#140e21] border-b border-[#e8e1ef] dark:border-[#2a203f] print:hidden">
         <div className="max-w-[1200px] mx-auto px-5 py-3.5 flex items-center justify-between gap-8">
           {/* Zone 1: Adaptive Light/Dark Brand Lockup */}
-          <a
-            href="#builder"
-            className="focus-visible:outline-3 focus-visible:outline-[#e987cc] rounded-xl shrink-0"
+          <button
+            type="button"
+            onClick={() => setActivePage('campaigns')}
+            className="focus-visible:outline-3 focus-visible:outline-[#e987cc] rounded-xl shrink-0 cursor-pointer"
           >
             <TidyupsLogoLockup variant={theme} />
-          </a>
+          </button>
 
-          {/* Zone 2: Clean Single-Line Nav Links */}
+          {/* Zone 2: 4 Clean Single-Line Studio Pages */}
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#6c6277] dark:text-slate-300">
-            <a
-              href="#builder"
-              className="hover:text-[#56249a] dark:hover:text-white underline-offset-4 hover:underline transition-colors whitespace-nowrap shrink-0"
-            >
-              Builder
-            </a>
-            <a
-              href="#workspace-hub"
-              onClick={() => setHubTab('cloud')}
-              className="hover:text-[#56249a] dark:hover:text-white underline-offset-4 hover:underline transition-colors whitespace-nowrap shrink-0"
-            >
-              Cloud &amp; Sheets
-            </a>
-            <a
-              href="#workspace-hub"
-              onClick={() => setHubTab('logos')}
-              className="hover:text-[#56249a] dark:hover:text-white underline-offset-4 hover:underline transition-colors whitespace-nowrap shrink-0"
-            >
-              Brand Logos
-            </a>
-            <a
-              href="#ad-results"
-              className="hover:text-[#56249a] dark:hover:text-white underline-offset-4 hover:underline transition-colors whitespace-nowrap shrink-0"
-            >
-              Ad Variations
-            </a>
+            {(
+              [
+                { key: 'campaigns', label: 'Campaigns & Sheets' },
+                { key: 'images', label: 'Image Creator' },
+                { key: 'videos', label: 'Video Ad Creator' },
+                { key: 'brand', label: 'Logo & Icon Studio' },
+              ] as Array<{ key: AppPage; label: string }>
+            ).map((navItem) => {
+              const isActive = activePage === navItem.key;
+              return (
+                <button
+                  key={navItem.key}
+                  type="button"
+                  onClick={() => setActivePage(navItem.key)}
+                  className={`underline-offset-8 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+                    isActive
+                      ? 'text-[#56249a] dark:text-white font-bold underline decoration-2 decoration-[#e746a6]'
+                      : 'hover:text-[#56249a] dark:hover:text-white hover:underline'
+                  }`}
+                >
+                  {navItem.label}
+                </button>
+              );
+            })}
           </nav>
 
           {/* Zone 3: Single Auth Action */}
@@ -406,63 +595,177 @@ export const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Workspace Subheader + Light / Dark Theme Switch */}
-      <div className="max-w-[1200px] w-full mx-auto px-5 pt-6 pb-1 flex flex-wrap items-center justify-between gap-4 print:hidden">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#241436] dark:text-white m-0">
-            Tidyups Facebook &amp; Instagram Ads Creator
-          </h1>
-          <p className="text-xs sm:text-sm text-[#6c6277] dark:text-slate-400 mt-1 mb-0">
-            Edmonton, Alberta · Campaign copy, creative prompts, video scripts &amp; brand assets
-          </p>
+      {/* Workspace Subheader + Mobile Page Switcher + Light / Dark Theme Switch */}
+      <div className="max-w-[1200px] w-full mx-auto px-5 pt-6 pb-1 space-y-3 print:hidden">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#241436] dark:text-white m-0">
+              Tidyups Facebook &amp; Instagram Ads Creator
+            </h1>
+            <p className="text-xs sm:text-sm text-[#6c6277] dark:text-slate-400 mt-1 mb-0 tabular-nums">
+              Edmonton, AB · Colored-tab Sheets · 1-click Leads Ads Drive · AI Image, Video &amp; Mascot Logo Studio ({portfolioAssets.length} saved assets)
+            </p>
+          </div>
+
+          {/* Interactive Light / Dark Theme Segmented Control */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setActivePage('brand')}
+              className="px-3 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#181226] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#221936] whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              Logo &amp; Icon Studio
+            </button>
+
+            <div
+              role="group"
+              aria-label="Color theme toggle"
+              className="inline-flex items-center p-1 rounded-xl bg-[#ede6f6] dark:bg-[#1a1329] border border-[#dfd3ee] dark:border-[#2d2342]"
+            >
+              <button
+                type="button"
+                onClick={() => setTheme('light')}
+                aria-pressed={theme === 'light'}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+                  theme === 'light'
+                    ? 'bg-white text-[#241436] shadow-xs'
+                    : 'text-[#6c6277] dark:text-slate-400 hover:text-[#241436] dark:hover:text-slate-200'
+                }`}
+              >
+                <Sun className="w-3.5 h-3.5" />
+                Light
+              </button>
+              <button
+                type="button"
+                onClick={() => setTheme('dark')}
+                aria-pressed={theme === 'dark'}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+                  theme === 'dark'
+                    ? 'bg-[#2c2046] text-white shadow-xs'
+                    : 'text-[#6c6277] dark:text-slate-400 hover:text-[#241436] dark:hover:text-slate-200'
+                }`}
+              >
+                <Moon className="w-3.5 h-3.5" />
+                Dark
+              </button>
+            </div>
+          </div>
         </div>
 
-        {/* Interactive Light / Dark Theme Segmented Control */}
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setHubTab('logos')}
-            className="px-3 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#181226] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#221936] whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            View Light &amp; Dark Logos
-          </button>
-
-          <div
-            role="group"
-            aria-label="Color theme toggle"
-            className="inline-flex items-center p-1 rounded-xl bg-[#ede6f6] dark:bg-[#1a1329] border border-[#dfd3ee] dark:border-[#2d2342]"
-          >
+        {/* Mobile / Compact Page Switcher */}
+        <div className="flex md:hidden flex-wrap items-center gap-1.5 p-1 rounded-xl bg-[#ede6f6] dark:bg-[#181226]">
+          {(
+            [
+              { key: 'campaigns', label: 'Campaigns' },
+              { key: 'images', label: 'Image Ads' },
+              { key: 'videos', label: 'Video Ads' },
+              { key: 'brand', label: 'Logos & Icons' },
+            ] as Array<{ key: AppPage; label: string }>
+          ).map((item) => (
             <button
+              key={item.key}
               type="button"
-              onClick={() => setTheme('light')}
-              aria-pressed={theme === 'light'}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
-                theme === 'light'
-                  ? 'bg-white text-[#241436] shadow-xs'
-                  : 'text-[#6c6277] dark:text-slate-400 hover:text-[#241436] dark:hover:text-slate-200'
+              onClick={() => setActivePage(item.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer ${
+                activePage === item.key
+                  ? 'bg-white dark:bg-[#2c2046] text-[#241436] dark:text-white shadow-xs'
+                  : 'text-[#6c6277] dark:text-slate-400'
               }`}
             >
-              <Sun className="w-3.5 h-3.5" />
-              Light
+              {item.label}
             </button>
-            <button
-              type="button"
-              onClick={() => setTheme('dark')}
-              aria-pressed={theme === 'dark'}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
-                theme === 'dark'
-                  ? 'bg-[#2c2046] text-white shadow-xs'
-                  : 'text-[#6c6277] dark:text-slate-400 hover:text-[#241436] dark:hover:text-slate-200'
-              }`}
-            >
-              <Moon className="w-3.5 h-3.5" />
-              Dark
-            </button>
-          </div>
+          ))}
         </div>
       </div>
 
-      {/* Main 2-Column Workspace */}
+      {activePage === 'images' && (
+        <main className="max-w-[1200px] w-full mx-auto my-6 px-5 flex-1">
+          <ImageCreatorPage
+            user={user}
+            accessToken={accessToken}
+            onSignIn={handleSignIn}
+            settings={settings}
+            ads={ads}
+            portfolioAssets={portfolioAssets}
+            initialPrompt={handoffImagePrompt}
+            initialTitle={handoffImageTitle}
+            onDeleteAsset={handleRequestDeletePortfolioAsset}
+            onRequestConfirmation={(nextConfirm) =>
+              setConfirmation({
+                ...nextConfirm,
+                onConfirm: async () => {
+                  try {
+                    await nextConfirm.onConfirm();
+                  } finally {
+                    setConfirmation(null);
+                  }
+                },
+              })
+            }
+            onStatus={setStatus}
+            status={status}
+          />
+        </main>
+      )}
+
+      {activePage === 'videos' && (
+        <main className="max-w-[1200px] w-full mx-auto my-6 px-5 flex-1">
+          <VideoCreatorPage
+            user={user}
+            accessToken={accessToken}
+            onSignIn={handleSignIn}
+            settings={settings}
+            ads={ads}
+            portfolioAssets={portfolioAssets}
+            initialPrompt={handoffVideoPrompt}
+            initialTitle={handoffVideoTitle}
+            onDeleteAsset={handleRequestDeletePortfolioAsset}
+            onRequestConfirmation={(nextConfirm) =>
+              setConfirmation({
+                ...nextConfirm,
+                onConfirm: async () => {
+                  try {
+                    await nextConfirm.onConfirm();
+                  } finally {
+                    setConfirmation(null);
+                  }
+                },
+              })
+            }
+            onStatus={setStatus}
+            status={status}
+          />
+        </main>
+      )}
+
+      {activePage === 'brand' && (
+        <main className="max-w-[1200px] w-full mx-auto my-6 px-5 flex-1">
+          <LogoIconStudioPage
+            user={user}
+            accessToken={accessToken}
+            onSignIn={handleSignIn}
+            portfolioAssets={portfolioAssets}
+            onDeleteAsset={handleRequestDeletePortfolioAsset}
+            onRequestConfirmation={(nextConfirm) =>
+              setConfirmation({
+                ...nextConfirm,
+                onConfirm: async () => {
+                  try {
+                    await nextConfirm.onConfirm();
+                  } finally {
+                    setConfirmation(null);
+                  }
+                },
+              })
+            }
+            onStatus={setStatus}
+            status={status}
+          />
+        </main>
+      )}
+
+      {/* Main 2-Column Campaigns & Sheets Workspace */}
+      {activePage === 'campaigns' && (
       <main className="max-w-[1200px] w-full mx-auto my-6 px-5 grid grid-cols-1 lg:grid-cols-[360px_minmax(0,1fr)] gap-6 flex-1 print:block">
         {/* Left Column: Campaign Settings */}
         <section
@@ -668,6 +971,11 @@ export const App: React.FC = () => {
             onSignIn={handleSignIn}
             settings={settings}
             ads={ads}
+            onEnsureAds={ensureAdsGenerated}
+            onSaveStyledSheet={handleSaveStyledGoogleSheet}
+            onUploadLeadsAdsFolder={handleUploadLeadsAdsFolder}
+            externalBusyAction={workspaceBusyAction}
+            lastLeadsBundle={lastLeadsBundle}
             activeCampaignId={activeCampaignId}
             savedCampaigns={savedCampaigns}
             links={links}
@@ -693,18 +1001,47 @@ export const App: React.FC = () => {
               clearAccessToken();
               setAccessToken(null);
             }}
+            onOpenLogoStudio={() => setActivePage('brand')}
           />
 
-          {/* Local Export & Status Bar */}
+          {/* 1-Click Cloud & Local Export Bar */}
           <div className="bg-white dark:bg-[#181226] border border-[#e8e1ef] dark:border-[#2d2342] rounded-2xl p-6 mb-6 print:hidden">
             <h2 className="text-lg font-bold text-[#241436] dark:text-slate-100 mb-1.5">
               Campaign workspace
             </h2>
             <p className="text-sm text-[#6c6277] dark:text-slate-300 m-0">
-              Generate conversion-focused headlines, primary text, descriptions, image prompts, and short-video scripts. Edit any ad inline, copy a single variation, or export the full set.
+              Export all generated ads into a Google Sheet with bright colored tabs and styled banner headers, or upload a complete Leads Ads folder to Google Drive in one click.
             </p>
 
             <div className="flex flex-wrap gap-2.5 mt-4 mb-3">
+              <button
+                type="button"
+                disabled={workspaceBusyAction !== null}
+                onClick={() => {
+                  void handleSaveStyledGoogleSheet();
+                }}
+                className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] text-white font-bold text-xs px-4 py-2.5 rounded-xl hover:opacity-95 disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                {workspaceBusyAction === 'styled-sheet'
+                  ? 'Saving Colored-Tab Sheet…'
+                  : 'Save Colored-Tab Sheet'}
+              </button>
+
+              <button
+                type="button"
+                disabled={workspaceBusyAction !== null}
+                onClick={() => {
+                  void handleUploadLeadsAdsFolder();
+                }}
+                className="inline-flex items-center gap-1.5 bg-[#047857] dark:bg-[#059669] hover:bg-[#065f46] dark:hover:bg-[#047857] text-white font-bold text-xs px-4 py-2.5 rounded-xl disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <FolderUp className="w-3.5 h-3.5" />
+                {workspaceBusyAction === 'leads-folder'
+                  ? 'Uploading Leads Ads Folder…'
+                  : '1-Click Upload Leads Ads Folder'}
+              </button>
+
               <button
                 type="button"
                 onClick={() => {
@@ -765,6 +1102,36 @@ export const App: React.FC = () => {
               </button>
             </div>
 
+            {(activeStyledSheetUrl || activeLeadsFolderUrl) && (
+              <div className="flex flex-wrap items-center gap-4 pt-3 mb-3 border-t border-[#e8e1ef] dark:border-[#2d2342] text-xs">
+                {activeStyledSheetUrl && (
+                  <a
+                    href={activeStyledSheetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-[#56249a] dark:text-[#c084fc] underline whitespace-nowrap shrink-0"
+                  >
+                    Open Colored-Tab Google Sheet
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                {activeLeadsFolderUrl && (
+                  <a
+                    href={activeLeadsFolderUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 font-bold text-[#047857] dark:text-[#34d399] underline whitespace-nowrap shrink-0"
+                  >
+                    Open Leads Ads Folder in Drive
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                <span className="text-[#6c6277] dark:text-slate-400">
+                  Tabs: Ad Copy &amp; Variations · Creative &amp; Video Scripts · Lead Ads Tracker · Campaign Brief
+                </span>
+              </div>
+            )}
+
             <p
               aria-live="polite"
               className="text-xs font-semibold text-[#56249a] dark:text-[#c084fc] m-0"
@@ -778,7 +1145,7 @@ export const App: React.FC = () => {
             {ads.length === 0 ? (
               <div className="py-12 px-6 text-center text-[#6c6277] dark:text-slate-400 border border-dashed border-[#d9c9e5] dark:border-[#35294f] rounded-2xl bg-white dark:bg-[#181226] text-sm">
                 <p className="m-0 mb-3">
-                  Select your campaign options and generate variations, or load a saved cloud campaign.
+                  Select your campaign options and generate variations, or click either 1-click Google Sheets / Drive export above to generate and upload automatically.
                 </p>
                 <button
                   type="button"
@@ -975,6 +1342,34 @@ export const App: React.FC = () => {
                         )}
                         Copy video script
                       </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHandoffImageTitle(`Ad ${ad.number} — ${ad.headline}`);
+                          setHandoffImagePrompt(ad.image_prompt);
+                          setActivePage('images');
+                          setStatus(`Loaded Ad ${ad.number} prompt into the AI Image Creator.`);
+                        }}
+                        className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] text-white font-bold text-xs px-3.5 py-2 rounded-xl hover:opacity-95 whitespace-nowrap shrink-0 cursor-pointer"
+                      >
+                        <ImageIcon className="w-3.5 h-3.5" />
+                        Create Image Ad
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setHandoffVideoTitle(`Video Ad ${ad.number} — ${ad.headline}`);
+                          setHandoffVideoPrompt(ad.video_script);
+                          setActivePage('videos');
+                          setStatus(`Loaded Ad ${ad.number} video script into the AI Video Ad Creator.`);
+                        }}
+                        className="inline-flex items-center gap-1.5 bg-[#047857] dark:bg-[#059669] hover:bg-[#065f46] text-white font-bold text-xs px-3.5 py-2 rounded-xl whitespace-nowrap shrink-0 cursor-pointer"
+                      >
+                        <Film className="w-3.5 h-3.5" />
+                        Create Video Ad
+                      </button>
                     </div>
                   </article>
                 );
@@ -983,6 +1378,7 @@ export const App: React.FC = () => {
           </div>
         </section>
       </main>
+      )}
 
       <footer className="max-w-[1200px] w-full mx-auto px-5 pt-3 pb-8 text-[#766684] dark:text-slate-400 text-xs leading-relaxed tabular-nums print:hidden">
         Tidyups Cleaning Service Inc. · Edmonton, AB · 780-718-5092 ·{' '}

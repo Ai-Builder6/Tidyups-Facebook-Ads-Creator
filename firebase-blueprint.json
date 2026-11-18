@@ -86,13 +86,13 @@
         },
         "linkedDriveFileId": {
           "type": "string",
-          "description": "Optional Google Drive file ID attached via Google Picker or exported.",
+          "description": "Optional Google Drive file or folder ID attached via Google Picker or exported.",
           "minLength": 0,
           "maxLength": 128
         },
         "linkedDriveFileName": {
           "type": "string",
-          "description": "Display name of the linked Google Drive file.",
+          "description": "Display name of the linked Google Drive file or folder.",
           "minLength": 0,
           "maxLength": 200
         },
@@ -233,6 +233,119 @@
         "createdAt",
         "updatedAt"
       ]
+    },
+    "CreativeAsset": {
+      "title": "CreativeAsset",
+      "description": "A saved portfolio item created in the Image Ad Creator, Video Ad Creator, or Logo & Icon Studio.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the portfolio owner.",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "category": {
+          "type": "string",
+          "description": "Portfolio section where this asset belongs.",
+          "enum": ["ad-image", "video-ad", "brand-logo", "brand-icon"],
+          "maxLength": 24
+        },
+        "title": {
+          "type": "string",
+          "description": "Human-readable title of the generated creative.",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "prompt": {
+          "type": "string",
+          "description": "Prompt or script used to generate the creative.",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "service": {
+          "type": "string",
+          "description": "Associated cleaning service or brand category.",
+          "enum": ["moveout", "deep", "standard", "movein", "recurring", "commercial", "airbnb", "brand"],
+          "maxLength": 32
+        },
+        "aspectRatio": {
+          "type": "string",
+          "description": "Aspect ratio of the creative.",
+          "enum": ["1:1", "3:4", "4:3", "4:5", "9:16", "16:9"],
+          "maxLength": 16
+        },
+        "modelUsed": {
+          "type": "string",
+          "description": "Identifier of the model or generator used.",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "previewDataUrl": {
+          "type": "string",
+          "description": "Compact compressed WebP/JPEG thumbnail preview data URL (< 180 KB) for fast portfolio rendering within Firestore limits.",
+          "minLength": 0,
+          "maxLength": 180000
+        },
+        "svgMarkup": {
+          "type": "string",
+          "description": "Optional vector SVG markup for vector logos and icons.",
+          "minLength": 0,
+          "maxLength": 40000
+        },
+        "durationLabel": {
+          "type": "string",
+          "description": "Optional video clip duration label (e.g. 6s, 10s).",
+          "minLength": 0,
+          "maxLength": 24
+        },
+        "interactionId": {
+          "type": "string",
+          "description": "Optional Gemini Interactions API ID for multi-turn video editing or extension.",
+          "minLength": 0,
+          "maxLength": 160
+        },
+        "driveFileId": {
+          "type": "string",
+          "description": "Optional Google Drive file ID where the full-resolution PNG or MP4 is backed up.",
+          "minLength": 0,
+          "maxLength": 128
+        },
+        "driveWebViewLink": {
+          "type": "string",
+          "description": "Optional Google Drive webViewLink URL for the backed-up full-resolution file.",
+          "minLength": 0,
+          "maxLength": 400
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the portfolio asset was saved."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when the portfolio asset was last updated."
+        }
+      },
+      "required": [
+        "ownerId",
+        "category",
+        "title",
+        "prompt",
+        "service",
+        "aspectRatio",
+        "modelUsed",
+        "previewDataUrl",
+        "svgMarkup",
+        "durationLabel",
+        "interactionId",
+        "driveFileId",
+        "driveWebViewLink",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "firestore": {
@@ -243,6 +356,10 @@
     "/campaigns/{campaignId}/ads/{adId}": {
       "schema": "AdVariation",
       "description": "Subcollection of generated ad variations belonging to a parent campaign."
+    },
+    "/creativeAssets/{assetId}": {
+      "schema": "CreativeAsset",
+      "description": "Top-level portfolio storage for generated ad images, video ads, logos, and icons isolated per authenticated owner."
     }
   }
 }

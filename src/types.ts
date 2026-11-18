@@ -24,6 +24,8 @@ export interface FirestoreErrorInfo {
   };
 }
 
+export type AppPage = 'campaigns' | 'images' | 'videos' | 'brand';
+
 export type ServiceKey =
   | 'moveout'
   | 'deep'
@@ -33,9 +35,15 @@ export type ServiceKey =
   | 'commercial'
   | 'airbnb';
 
+export type CreativeServiceTag = ServiceKey | 'brand';
+
 export type ToneKey = 'trust' | 'urgent' | 'relief' | 'premium' | 'local';
 
 export type CreativeFormat = '1:1' | '4:5' | '9:16' | '16:9';
+
+export type CreativeAspectRatio = '1:1' | '3:4' | '4:3' | '4:5' | '9:16' | '16:9';
+
+export type CreativeCategory = 'ad-image' | 'video-ad' | 'brand-logo' | 'brand-icon';
 
 export interface CampaignSettings {
   title: string;
@@ -81,6 +89,25 @@ export interface SavedCampaign {
   linkedSheetName: string;
   linkedDriveFileId: string;
   linkedDriveFileName: string;
+  createdAtMillis: number;
+  updatedAtMillis: number;
+}
+
+export interface CreativeAsset {
+  id: string;
+  ownerId: string;
+  category: CreativeCategory;
+  title: string;
+  prompt: string;
+  service: CreativeServiceTag;
+  aspectRatio: CreativeAspectRatio;
+  modelUsed: string;
+  previewDataUrl: string;
+  svgMarkup: string;
+  durationLabel: string;
+  interactionId: string;
+  driveFileId: string;
+  driveWebViewLink: string;
   createdAtMillis: number;
   updatedAtMillis: number;
 }
@@ -140,4 +167,11 @@ export const BLUEPRINT_LIMITS = {
   ctaMax: 40,
   promptMax: 2000,
   scriptMax: 2000,
+  assetTitleMax: 140,
+  modelUsedMax: 80,
+  previewDataUrlMax: 180000,
+  svgMarkupMax: 40000,
+  durationLabelMax: 24,
+  interactionIdMax: 160,
+  driveWebViewLinkMax: 400,
 } as const;
