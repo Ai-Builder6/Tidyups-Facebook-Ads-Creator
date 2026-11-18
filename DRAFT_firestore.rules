@@ -1,0 +1,310 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 4.1: Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Phase 3: Reusable Hardened Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isParentCampaignOwner(campaignId) {
+      return exists(/databases/$(database)/documents/campaigns/$(campaignId))
+        && get(/databases/$(database)/documents/campaigns/$(campaignId)).data.ownerId == request.auth.uid;
+    }
+
+    function isParentCampaignOwnerAfter(campaignId) {
+      return existsAfter(/databases/$(database)/documents/campaigns/$(campaignId))
+        && getAfter(/databases/$(database)/documents/campaigns/$(campaignId)).data.ownerId == request.auth.uid;
+    }
+
+    // Pillar 2: Validation Blueprints (Synchronized verbatim with firebase-blueprint.json)
+    function isValidCampaign(data) {
+      return data.keys().hasAll([
+          'ownerId',
+          'title',
+          'service',
+          'tone',
+          'format',
+          'offer',
+          'area',
+          'bookingUrl',
+          'businessPhone',
+          'notes',
+          'adCount',
+          'linkedSheetId',
+          'linkedSheetName',
+          'linkedDriveFileId',
+          'linkedDriveFileName',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId',
+          'title',
+          'service',
+          'tone',
+          'format',
+          'offer',
+          'area',
+          'bookingUrl',
+          'businessPhone',
+          'notes',
+          'adCount',
+          'linkedSheetId',
+          'linkedSheetName',
+          'linkedDriveFileId',
+          'linkedDriveFileName',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId == request.auth.uid
+        && data.title is string
+        && data.title.size() >= 1
+        && data.title.size() <= 120
+        && data['service'] is string
+        && data['service'].size() <= 32
+        && data['service'] in ['moveout', 'deep', 'standard', 'movein', 'recurring', 'commercial', 'airbnb']
+        && data.tone is string
+        && data.tone.size() <= 32
+        && data.tone in ['trust', 'urgent', 'relief', 'premium', 'local']
+        && data.format is string
+        && data.format.size() <= 16
+        && data.format in ['1:1', '4:5', '9:16', '16:9']
+        && data.offer is string
+        && data.offer.size() <= 160
+        && data.area is string
+        && data.area.size() >= 1
+        && data.area.size() <= 120
+        && data.bookingUrl is string
+        && data.bookingUrl.size() >= 8
+        && data.bookingUrl.size() <= 300
+        && data.bookingUrl.matches('^https://.+$')
+        && data.businessPhone is string
+        && data.businessPhone.size() >= 7
+        && data.businessPhone.size() <= 40
+        && data.notes is string
+        && data.notes.size() <= 500
+        && data.adCount is int
+        && data.adCount >= 1
+        && data.adCount <= 10
+        && data.linkedSheetId is string
+        && data.linkedSheetId.size() <= 128
+        && data.linkedSheetName is string
+        && data.linkedSheetName.size() <= 200
+        && data.linkedDriveFileId is string
+        && data.linkedDriveFileId.size() <= 128
+        && data.linkedDriveFileName is string
+        && data.linkedDriveFileName.size() <= 200
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdVariation(data, campaignId) {
+      return data.keys().hasAll([
+          'ownerId',
+          'campaignId',
+          'variationNumber',
+          'serviceName',
+          'format',
+          'headline',
+          'primaryText',
+          'description',
+          'cta',
+          'destinationUrl',
+          'imagePrompt',
+          'videoScript',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'ownerId',
+          'campaignId',
+          'variationNumber',
+          'serviceName',
+          'format',
+          'headline',
+          'primaryText',
+          'description',
+          'cta',
+          'destinationUrl',
+          'imagePrompt',
+          'videoScript',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.ownerId is string
+        && data.ownerId.size() >= 1
+        && data.ownerId.size() <= 128
+        && data.ownerId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.ownerId == request.auth.uid
+        && data.campaignId is string
+        && data.campaignId.size() >= 1
+        && data.campaignId.size() <= 128
+        && data.campaignId.matches('^[a-zA-Z0-9_\\-]+$')
+        && data.campaignId == campaignId
+        && data.variationNumber is int
+        && data.variationNumber >= 1
+        && data.variationNumber <= 20
+        && data.serviceName is string
+        && data.serviceName.size() >= 1
+        && data.serviceName.size() <= 80
+        && data.format is string
+        && data.format.size() <= 16
+        && data.format in ['1:1', '4:5', '9:16', '16:9']
+        && data.headline is string
+        && data.headline.size() >= 1
+        && data.headline.size() <= 150
+        && data.primaryText is string
+        && data.primaryText.size() >= 1
+        && data.primaryText.size() <= 2000
+        && data.description is string
+        && data.description.size() >= 1
+        && data.description.size() <= 300
+        && data.cta is string
+        && data.cta.size() >= 1
+        && data.cta.size() <= 40
+        && data.destinationUrl is string
+        && data.destinationUrl.size() >= 8
+        && data.destinationUrl.size() <= 300
+        && data.destinationUrl.matches('^https://.+$')
+        && data.imagePrompt is string
+        && data.imagePrompt.size() >= 1
+        && data.imagePrompt.size() <= 2000
+        && data.videoScript is string
+        && data.videoScript.size() >= 1
+        && data.videoScript.size() <= 2000
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    // Collection: /campaigns/{campaignId}
+    match /campaigns/{campaignId} {
+      allow get: if isSignedIn()
+        && isValidId(campaignId)
+        && existing().ownerId == request.auth.uid;
+
+      allow list: if isSignedIn()
+        && existing().ownerId == request.auth.uid;
+
+      allow create: if isVerifiedUser()
+        && isValidId(campaignId)
+        && isValidCampaign(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser()
+        && isValidId(campaignId)
+        && isValidCampaign(incoming())
+        && existing().ownerId == request.auth.uid
+        && incoming().ownerId == existing().ownerId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title',
+            'service',
+            'tone',
+            'format',
+            'offer',
+            'area',
+            'bookingUrl',
+            'businessPhone',
+            'notes',
+            'adCount',
+            'linkedSheetId',
+            'linkedSheetName',
+            'linkedDriveFileId',
+            'linkedDriveFileName',
+            'updatedAt'
+          ])
+          || incoming().diff(existing()).affectedKeys().hasOnly([
+            'linkedSheetId',
+            'linkedSheetName',
+            'linkedDriveFileId',
+            'linkedDriveFileName',
+            'updatedAt'
+          ])
+        );
+
+      allow delete: if isVerifiedUser()
+        && isValidId(campaignId)
+        && existing().ownerId == request.auth.uid;
+
+      // Subcollection: /campaigns/{campaignId}/ads/{adId}
+      match /ads/{adId} {
+        allow get: if isSignedIn()
+          && isValidId(campaignId)
+          && isValidId(adId)
+          && existing().ownerId == request.auth.uid
+          && isParentCampaignOwner(campaignId);
+
+        allow list: if isSignedIn()
+          && existing().ownerId == request.auth.uid
+          && existing().campaignId == campaignId;
+
+        allow create: if isVerifiedUser()
+          && isValidId(campaignId)
+          && isValidId(adId)
+          && isValidAdVariation(incoming(), campaignId)
+          && incoming().createdAt == request.time
+          && incoming().updatedAt == request.time
+          && isParentCampaignOwnerAfter(campaignId);
+
+        allow update: if isVerifiedUser()
+          && isValidId(campaignId)
+          && isValidId(adId)
+          && isValidAdVariation(incoming(), campaignId)
+          && existing().ownerId == request.auth.uid
+          && incoming().ownerId == existing().ownerId
+          && incoming().campaignId == existing().campaignId
+          && incoming().createdAt == existing().createdAt
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly([
+            'variationNumber',
+            'serviceName',
+            'format',
+            'headline',
+            'primaryText',
+            'description',
+            'cta',
+            'destinationUrl',
+            'imagePrompt',
+            'videoScript',
+            'updatedAt'
+          ])
+          && isParentCampaignOwner(campaignId);
+
+        allow delete: if isVerifiedUser()
+          && isValidId(campaignId)
+          && isValidId(adId)
+          && existing().ownerId == request.auth.uid
+          && isParentCampaignOwner(campaignId);
+      }
+    }
+  }
+}
