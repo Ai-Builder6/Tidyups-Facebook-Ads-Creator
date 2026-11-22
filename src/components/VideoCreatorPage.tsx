@@ -5,7 +5,6 @@ import {
   Copy,
   Download,
   ExternalLink,
-  Film,
   HardDrive,
   Image as ImageIcon,
   Play,
@@ -66,47 +65,53 @@ const VIDEO_PRESETS: Array<{
   service: ServiceKey;
   aspectRatio: '9:16' | '16:9';
   mode: VideoCreationMode;
+  mascotId?: string;
   prompt: string;
 }> = [
   {
-    label: 'Tidyups Bunny Mascot Intro',
+    label: 'BookMyCleaning Official Logo Intro',
     service: 'standard',
     aspectRatio: '9:16',
     mode: 'image-to-video',
+    mascotId: 'bookmycleaning-light',
     prompt:
-      'Animate the cute white Tidyups bunny mascot waving its sparkling purple-and-pink feather duster playfully as shimmering violet and cyan clean sparkles swirl around a bright spotless modern Edmonton kitchen, smooth commercial studio motion, crisp lighting.',
+      'Animate the official BookMyCleaning Tidyups Cleaning Service Inc. bunny mascot logo: the white bunny playfully waves its purple-pink-cyan feather duster as crisp magenta and cyan sparkles shimmer around the cosmic purple circle and house roofline while keeping the exact "BookMyCleaning Tidyups — Cleaning Service Inc. —" lettering crisp, centered, and legible on a clean bright studio backdrop.',
   },
   {
-    label: 'Move-Out Walkthrough Reveal',
+    label: 'Move-Out Walkthrough + Logo Reveal',
     service: 'moveout',
     aspectRatio: '9:16',
     mode: 'text-to-video',
+    mascotId: 'bookmycleaning-light',
     prompt:
-      'Smooth gimbal walkthrough reveal of an empty modern Edmonton home gleaming after a professional move-out cleaning: sunlit quartz kitchen island, spotless stainless oven interior, polished hardwood floors reflecting warm afternoon light, commercial Meta Reel quality.',
+      'Smooth gimbal walkthrough reveal of an empty modern Edmonton home gleaming after a professional move-out cleaning: sunlit quartz kitchen island, spotless stainless oven interior, polished hardwood floors reflecting warm afternoon light, ending with a clean branded reveal featuring the provided official BookMyCleaning Tidyups bunny mascot logo.',
   },
   {
     label: 'Deep Clean Bathroom Shine',
     service: 'deep',
     aspectRatio: '9:16',
     mode: 'text-to-video',
+    mascotId: 'bookmycleaning-light',
     prompt:
-      'Cinematic macro-to-wide commercial video of a luxury spa bathroom freshly deep cleaned, water droplets wiped from crystal-clear glass shower door, gleaming chrome faucet, pristine white tile grout, bright natural daylight.',
+      'Cinematic macro-to-wide commercial video of a luxury spa bathroom freshly deep cleaned, water droplets wiped from crystal-clear glass shower door, gleaming chrome faucet, pristine white tile grout, bright natural daylight, finishing with the provided official BookMyCleaning Tidyups logo reveal.',
   },
   {
     label: '5-Star Airbnb Turnover Reel',
     service: 'airbnb',
     aspectRatio: '9:16',
     mode: 'text-to-video',
+    mascotId: 'bookmycleaning-light',
     prompt:
-      'Inviting vertical Reel panning across a freshly staged Edmonton Airbnb living room and bedroom ready for guest check-in, crisp white duvet, fluffed pillows, spotless glass coffee table, warm golden sunlight.',
+      'Inviting vertical Reel panning across a freshly staged Edmonton Airbnb living room and bedroom ready for guest check-in, crisp white duvet, fluffed pillows, spotless glass coffee table, warm golden sunlight, closing with the official BookMyCleaning Tidyups logo card.',
   },
   {
     label: 'Commercial Office Polish (16:9)',
     service: 'commercial',
     aspectRatio: '16:9',
     mode: 'text-to-video',
+    mascotId: 'bookmycleaning-light',
     prompt:
-      'Wide architectural tracking shot through a sleek modern Edmonton corporate office lobby and glass boardroom gleaming after evening commercial cleaning service, streak-free glass walls, sanitized desks, polished floors.',
+      'Wide architectural tracking shot through a sleek modern Edmonton corporate office lobby and glass boardroom gleaming after evening commercial cleaning service, streak-free glass walls, sanitized desks, polished floors, ending cleanly with the official BookMyCleaning Tidyups logo.',
   },
 ];
 
@@ -125,21 +130,22 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
 }) => {
   const [mode, setMode] = useState<VideoCreationMode>('text-to-video');
   const [title, setTitle] = useState<string>(
-    initialTitle || `${SERVICE_DATA[settings.service].name} Video Ad`
+    initialTitle || `BookMyCleaning · ${SERVICE_DATA[settings.service].name} Video Ad`
   );
   const [serviceTag, setServiceTag] = useState<ServiceKey>(settings.service);
   const [aspectRatio, setAspectRatio] = useState<'9:16' | '16:9'>(
     settings.format === '16:9' ? '16:9' : '9:16'
   );
-  const [duration, setDuration] = useState<'5s' | '8s' | '10s'>('8s');
+  const [duration, setDuration] = useState<'5s' | '8s' | '10s' | '15s'>('8s');
   const [resolution, setResolution] = useState<'720p' | '1080p'>('720p');
   const [prompt, setPrompt] = useState<string>(
     initialPrompt || ads[0]?.video_script || VIDEO_PRESETS[1].prompt
   );
 
-  // Image-to-video starting frame controls
+  // Official BookMyCleaning logo & Image-to-video starting frame controls
+  const [includeOfficialLogoInTextVideo, setIncludeOfficialLogoInTextVideo] = useState<boolean>(true);
   const [imageSourceType, setImageSourceType] = useState<ImageSourceType>('mascot');
-  const [selectedMascotId, setSelectedMascotId] = useState<string>('tidyups-light');
+  const [selectedMascotId, setSelectedMascotId] = useState<string>('bookmycleaning-light');
   const [selectedPortfolioImageId, setSelectedPortfolioImageId] = useState<string>('');
   const [uploadedFrameDataUrl, setUploadedFrameDataUrl] = useState<string>('');
   const [uploadedFrameName, setUploadedFrameName] = useState<string>('');
@@ -154,6 +160,8 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
   const [activeModelUsed, setActiveModelUsed] = useState<string>('gemini-omni-1.2-flash');
   const [activeSavedId, setActiveSavedId] = useState<string | null>(null);
   const [busyState, setBusyState] = useState<string | null>(null);
+  const [providerStage, setProviderStage] = useState<string>('');
+  const [stageError, setStageError] = useState<string>('');
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [portfolioFilter, setPortfolioFilter] = useState<string>('all');
@@ -207,18 +215,25 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
     reader.readAsDataURL(file);
   };
 
+  const selectedMascotRef =
+    OFFICIAL_MASCOT_REFERENCES.find((m) => m.id === selectedMascotId) ||
+    OFFICIAL_MASCOT_REFERENCES.find((m) => m.id === 'bookmycleaning-light') ||
+    OFFICIAL_MASCOT_REFERENCES[0];
+
   const resolveReferenceFrame = async (): Promise<{
     base64?: string;
     mimeType?: string;
+    isBrandReference?: boolean;
   }> => {
-    if (mode !== 'image-to-video') {
-      return {};
+    if (mode === 'text-to-video') {
+      if (!includeOfficialLogoInTextVideo) {
+        return {};
+      }
+      const parsed = await assetUrlToBase64(selectedMascotRef.src);
+      return { base64: parsed.base64, mimeType: parsed.mimeType, isBrandReference: true };
     }
     if (imageSourceType === 'mascot') {
-      const chosen =
-        OFFICIAL_MASCOT_REFERENCES.find((m) => m.id === selectedMascotId) ||
-        OFFICIAL_MASCOT_REFERENCES[0];
-      const parsed = await assetUrlToBase64(chosen.src);
+      const parsed = await assetUrlToBase64(selectedMascotRef.src);
       return { base64: parsed.base64, mimeType: parsed.mimeType };
     }
     if (imageSourceType === 'portfolio') {
@@ -226,7 +241,7 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
         savedImagesForAnimation.find((img) => img.id === selectedPortfolioImageId) ||
         savedImagesForAnimation[0];
       if (!target) {
-        throw new Error('Select a saved image from your portfolio or switch to Mascot reference.');
+        throw new Error('Select a saved image from your portfolio or switch to Official Logo.');
       }
       const cachedFull =
         (await getCachedFullMediaFromBrowser(target.id)) || target.previewDataUrl;
@@ -241,8 +256,8 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
   };
 
   const handleGenerateVideo = async (isExtensionTurn = false) => {
-    const effectivePrompt = isExtensionTurn ? extendInstruction.trim() : prompt.trim();
-    if (!effectivePrompt) {
+    const rawPrompt = isExtensionTurn ? extendInstruction.trim() : prompt.trim();
+    if (!rawPrompt) {
       onStatus(
         isExtensionTurn
           ? 'Describe how the video scene should continue or change.'
@@ -251,6 +266,8 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
       return;
     }
 
+    setStageError('');
+    setProviderStage('submitting');
     setBusyState(isExtensionTurn ? 'extend' : 'generate');
     onStatus(
       isExtensionTurn
@@ -260,16 +277,26 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
 
     try {
       const refFrame = isExtensionTurn ? {} : await resolveReferenceFrame();
-      const result = await generateStudioVideo({
-        prompt: effectivePrompt,
-        aspectRatio,
-        duration,
-        resolution,
-        referenceImageBase64: refFrame.base64,
-        referenceMimeType: refFrame.mimeType,
-        previousInteractionId:
-          isExtensionTurn && activeInteractionId ? activeInteractionId : undefined,
-      });
+      const effectivePrompt =
+        !isExtensionTurn && refFrame.isBrandReference && !/logo|bookmycleaning/i.test(rawPrompt)
+          ? `${rawPrompt}\n\nFeature the provided official ${selectedMascotRef.title} cleanly as a crisp branded intro or closing reveal without distorting the bunny mascot or lettering.`
+          : rawPrompt;
+
+      const result = await generateStudioVideo(
+        {
+          prompt: effectivePrompt,
+          aspectRatio,
+          duration: isExtensionTurn && duration === '15s' ? '10s' : duration,
+          resolution,
+          referenceImageBase64: refFrame.base64,
+          referenceMimeType: refFrame.mimeType,
+          previousInteractionId:
+            isExtensionTurn && activeInteractionId ? activeInteractionId : undefined,
+        },
+        (nextStage) => {
+          setProviderStage(nextStage);
+        }
+      );
 
       const poster = await captureVideoPosterThumbnail(result.videoDataUrl, 360);
       setActiveVideoUrl(result.videoDataUrl);
@@ -282,9 +309,12 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
       }
       onStatus(`Generated ${duration} ${aspectRatio} MP4 video commercial.`);
     } catch (err) {
-      onStatus(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      setStageError(message);
+      onStatus(message);
     } finally {
       setBusyState(null);
+      setProviderStage('');
     }
   };
 
@@ -533,12 +563,13 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
               <select
                 id="vid-duration"
                 value={duration}
-                onChange={(e) => setDuration(e.target.value as '5s' | '8s' | '10s')}
+                onChange={(e) => setDuration(e.target.value as '5s' | '8s' | '10s' | '15s')}
                 className={`${inputClass} tabular-nums`}
               >
                 <option value="5s">5 seconds (Bumper)</option>
                 <option value="8s">8 seconds (Reel)</option>
                 <option value="10s">10 seconds (Full Ad)</option>
+                <option value="15s">15 seconds (Extended Spot)</option>
               </select>
             </div>
 
@@ -561,6 +592,57 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
             </div>
           </div>
 
+          {/* Official BookMyCleaning Logo Reference for Text-to-Video */}
+          {mode === 'text-to-video' && (
+            <div className="mt-4 pt-3.5 border-t border-[#e8e1ef] dark:border-[#2d2342] space-y-2.5">
+              <label className="flex items-center justify-between gap-3 cursor-pointer">
+                <span className="text-xs font-bold text-[#241436] dark:text-slate-200">
+                  Include Official BookMyCleaning Logo
+                </span>
+                <input
+                  type="checkbox"
+                  checked={includeOfficialLogoInTextVideo}
+                  onChange={(e) => setIncludeOfficialLogoInTextVideo(e.target.checked)}
+                  className="w-4 h-4 accent-[#5c28a1] cursor-pointer"
+                />
+              </label>
+
+              {includeOfficialLogoInTextVideo && (
+                <div className="flex items-center gap-3 p-2.5 rounded-xl border border-[#e3d9f0] dark:border-[#35294f] bg-[#faf8fd] dark:bg-[#120d1d]">
+                  <div
+                    className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-[#e8e1ef] dark:border-[#2d2342] grid place-items-center p-1 ${
+                      selectedMascotRef.surface === 'dark' ? 'bg-[#120c1e]' : 'bg-white'
+                    }`}
+                  >
+                    <img
+                      src={selectedMascotRef.src}
+                      alt={selectedMascotRef.title}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <select
+                      value={selectedMascotId}
+                      onChange={(e) => setSelectedMascotId(e.target.value)}
+                      aria-label="Select official logo reference for video"
+                      className="w-full px-2.5 py-1.5 border border-[#d8cde3] dark:border-[#35294f] rounded-lg bg-white dark:bg-[#181226] text-xs font-semibold text-[#241436] dark:text-slate-100"
+                    >
+                      {OFFICIAL_MASCOT_REFERENCES.map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.title}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-[#6c6277] dark:text-slate-400 m-0 truncate">
+                      Attached as official brand reference for BookMyCleaning video ads.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Starting Frame Selector for Image-to-Video */}
           {mode === 'image-to-video' && (
             <div className="mt-4 pt-3.5 border-t border-[#e8e1ef] dark:border-[#2d2342] space-y-2.5">
@@ -578,7 +660,7 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
                       : 'border border-[#d9c9e5] dark:border-[#392b54] text-[#56249a] dark:text-[#d8b4fe]'
                   }`}
                 >
-                  Official Mascot Logo
+                  Official Logo
                 </button>
                 <button
                   type="button"
@@ -605,18 +687,32 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
               </div>
 
               {imageSourceType === 'mascot' && (
-                <select
-                  value={selectedMascotId}
-                  onChange={(e) => setSelectedMascotId(e.target.value)}
-                  aria-label="Select Tidyups mascot logo to animate"
-                  className={inputClass}
-                >
-                  {OFFICIAL_MASCOT_REFERENCES.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.title}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-3 p-2.5 rounded-xl border border-[#e3d9f0] dark:border-[#35294f] bg-[#faf8fd] dark:bg-[#120d1d]">
+                  <div
+                    className={`w-14 h-14 rounded-lg overflow-hidden shrink-0 border border-[#e8e1ef] dark:border-[#2d2342] grid place-items-center p-1 ${
+                      selectedMascotRef.surface === 'dark' ? 'bg-[#120c1e]' : 'bg-white'
+                    }`}
+                  >
+                    <img
+                      src={selectedMascotRef.src}
+                      alt={selectedMascotRef.title}
+                      referrerPolicy="no-referrer"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <select
+                    value={selectedMascotId}
+                    onChange={(e) => setSelectedMascotId(e.target.value)}
+                    aria-label="Select Tidyups mascot logo to animate"
+                    className="flex-1 min-w-0 p-2.5 border border-[#d8cde3] dark:border-[#35294f] rounded-xl bg-white dark:bg-[#181226] text-xs font-semibold text-[#241436] dark:text-slate-100"
+                  >
+                    {OFFICIAL_MASCOT_REFERENCES.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               )}
 
               {imageSourceType === 'portfolio' && (
@@ -671,8 +767,13 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
                     setAspectRatio(preset.aspectRatio);
                     setMode(preset.mode);
                     setPrompt(preset.prompt);
+                    if (preset.mascotId) {
+                      setSelectedMascotId(preset.mascotId);
+                    }
                     if (preset.mode === 'image-to-video') {
                       setImageSourceType('mascot');
+                    } else {
+                      setIncludeOfficialLogoInTextVideo(true);
                     }
                   }}
                   className="px-2.5 py-1.5 rounded-lg border border-[#d9c9e5] dark:border-[#392b54] bg-[#faf8fd] dark:bg-[#211934] text-xs font-semibold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#f4e9fa] dark:hover:bg-[#2a2042] whitespace-nowrap shrink-0 cursor-pointer"
@@ -811,6 +912,15 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
             )}
           </div>
 
+          {stageError && (
+            <div
+              role="alert"
+              className="mt-4 p-3.5 rounded-xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-xs font-semibold text-rose-800 dark:text-rose-200 leading-relaxed"
+            >
+              {stageError}
+            </div>
+          )}
+
           <div className="mt-5 min-h-[410px] rounded-2xl bg-[#f4effa] dark:bg-[#110c1c] border border-[#e8e1ef] dark:border-[#2d2342] grid place-items-center p-4 overflow-hidden">
             {busyState === 'generate' || busyState === 'extend' ? (
               <div className="text-center py-16 px-6 max-w-md">
@@ -819,7 +929,7 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
                   Synthesizing {duration} {aspectRatio} MP4 video ({elapsedSeconds}s elapsed)…
                 </div>
                 <p className="text-xs text-[#6c6277] dark:text-slate-400 mt-1.5 mb-0 leading-relaxed">
-                  Gemini Omni 1.2 Flash is rendering motion frames at {resolution}. Video generation typically completes in 25–75 seconds.
+                  Gemini Omni 1.2 Flash ({providerStage ? providerStage.replace('_', ' ') : 'rendering'}) at {resolution}. Video generation typically completes in 25–90 seconds.
                 </p>
               </div>
             ) : activeVideoUrl ? (
@@ -845,13 +955,20 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
                 </p>
               </div>
             ) : (
-              <div className="text-center py-16 px-6 max-w-md">
-                <Film className="w-10 h-10 text-[#8b7e99] dark:text-slate-500 mx-auto mb-3" />
-                <div className="text-sm font-bold text-[#241436] dark:text-slate-200">
-                  Ready to produce your video commercial
+              <div className="text-center py-14 px-6 max-w-md space-y-3">
+                <div className="w-28 h-28 mx-auto rounded-2xl bg-white border border-[#e8e1ef] dark:border-[#2d2342] p-2 grid place-items-center shadow-xs">
+                  <img
+                    src={selectedMascotRef.src}
+                    alt={selectedMascotRef.title}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-full object-contain"
+                  />
                 </div>
-                <p className="text-xs text-[#6c6277] dark:text-slate-400 mt-1 mb-0 leading-relaxed">
-                  Select a commercial storyboard preset, load a 10-second script from your campaign ads, or switch to <b>Animate Mascot / Image</b> to bring your Tidyups bunny logo to life.
+                <div className="text-sm font-bold text-[#241436] dark:text-slate-200">
+                  Ready to produce your BookMyCleaning video commercial
+                </div>
+                <p className="text-xs text-[#6c6277] dark:text-slate-400 m-0 leading-relaxed">
+                  Your official BookMyCleaning Tidyups logo is loaded and ready. Pick a storyboard preset, load a campaign script, or switch to <b>Animate Mascot / Image</b> to bring the logo to life.
                 </p>
               </div>
             )}

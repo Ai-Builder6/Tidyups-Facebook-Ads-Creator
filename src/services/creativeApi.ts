@@ -19,7 +19,7 @@ export interface GenerateImageResult {
 export interface GenerateVideoParams {
   prompt: string;
   aspectRatio: '16:9' | '9:16';
-  duration: '5s' | '8s' | '10s';
+  duration: '5s' | '8s' | '10s' | '15s';
   resolution: '720p' | '1080p';
   referenceImageBase64?: string;
   referenceMimeType?: string;
@@ -68,7 +68,8 @@ export async function generateStudioImage(
 }
 
 export async function generateStudioVideo(
-  params: GenerateVideoParams
+  params: GenerateVideoParams,
+  onProgress?: (providerStatus: string) => void
 ): Promise<GenerateVideoResult> {
   const res = await fetch('/api/gemini/video', {
     method: 'POST',
@@ -76,7 +77,12 @@ export async function generateStudioVideo(
     body: JSON.stringify(params),
   });
   const initialPayload = await parseApiJson<
-    Partial<GenerateVideoResult> & { status?: string; jobId?: string; error?: string }
+    Partial<GenerateVideoResult> & {
+      status?: string;
+      jobId?: string;
+      providerStatus?: string;
+      error?: string;
+    }
   >(res, 'Video generation');
 
   if (!res.ok) {
@@ -86,13 +92,20 @@ export async function generateStudioVideo(
   let finalPayload = initialPayload;
 
   if (initialPayload.status === 'pending' && initialPayload.jobId) {
+    if (initialPayload.providerStatus) {
+      onProgress?.(initialPayload.providerStatus);
+    }
     const jobId = initialPayload.jobId;
-    const deadline = Date.now() + 310000;
+    const deadline = Date.now() + 330000;
     while (Date.now() < deadline) {
-      await new Promise((resolve) => setTimeout(resolve, 2500));
+      await new Promise((resolve) => setTimeout(resolve, 3000));
       const pollRes = await fetch(`/api/gemini/video/${encodeURIComponent(jobId)}`);
       const pollPayload = await parseApiJson<
-        Partial<GenerateVideoResult> & { status?: string; error?: string }
+        Partial<GenerateVideoResult> & {
+          status?: string;
+          providerStatus?: string;
+          error?: string;
+        }
       >(pollRes, 'Video status check');
 
       if (!pollRes.ok || pollPayload.status === 'failed') {
@@ -101,6 +114,9 @@ export async function generateStudioVideo(
       if (pollPayload.status === 'completed' || pollPayload.videoDataUrl) {
         finalPayload = pollPayload;
         break;
+      }
+      if (pollPayload.providerStatus) {
+        onProgress?.(pollPayload.providerStatus);
       }
     }
   }
@@ -119,6 +135,16 @@ export async function generateStudioVideo(
   };
 }
 
+function inferImageMimeType(url: string, blobType: string): string {
+  if (blobType && blobType.startsWith('image/')) {
+    return blobType;
+  }
+  const lower = url.toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  return 'image/jpeg';
+}
+
 export async function assetUrlToBase64(
   url: string
 ): Promise<{ base64: string; mimeType: string; dataUrl: string }> {
@@ -129,8 +155,11 @@ export async function assetUrlToBase64(
     }
   }
   const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Could not load reference logo/image (${response.status}).`);
+  }
   const blob = await response.blob();
-  const mimeType = blob.type || 'image/jpeg';
+  const mimeType = inferImageMimeType(url, blob.type);
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {

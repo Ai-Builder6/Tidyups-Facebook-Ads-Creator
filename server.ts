@@ -38,21 +38,30 @@ const VALID_VIDEO_DURATIONS = new Set([
   '8s',
   '9s',
   '10s',
+  '11s',
+  '12s',
+  '13s',
+  '14s',
+  '15s',
 ]);
 
-interface VideoJobRecord {
-  status: 'pending' | 'completed' | 'failed';
-  result?: {
-    videoDataUrl: string;
-    mimeType: string;
-    interactionId: string;
-    modelUsed: string;
-  };
-  error?: string;
-  httpStatus?: number;
-}
+const VALID_EXTENSION_DURATIONS = new Set([
+  '3s',
+  '4s',
+  '5s',
+  '6s',
+  '7s',
+  '8s',
+  '9s',
+  '10s',
+]);
 
-const videoJobs = new Map<string, VideoJobRecord>();
+const TERMINAL_FAILURE_STATUSES = new Set([
+  'failed',
+  'cancelled',
+  'incomplete',
+  'budget_exceeded',
+]);
 
 function createGeminiClient(): GoogleGenAI {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -111,6 +120,113 @@ function stripDataUrlPrefix(input: string): string {
   return input;
 }
 
+interface ExtractedVideoResult {
+  videoDataUrl: string;
+  mimeType: string;
+  interactionId: string;
+  modelUsed: string;
+}
+
+interface VideoInteractionLike {
+  id?: string;
+  status: string;
+  output_text?: string | null;
+  output_video?: {
+    data?: string;
+    uri?: string;
+    mime_type?: string;
+  } | null;
+  steps?: Array<{
+    type?: string;
+    content?: Array<Record<string, unknown>>;
+  }>;
+  errors?: Array<{ message?: string } | Record<string, unknown>>;
+}
+
+async function extractVideoFromInteraction(
+  interaction: VideoInteractionLike
+): Promise<{ result?: ExtractedVideoResult; error?: string }> {
+  let videoBase64 = interaction.output_video?.data ?? '';
+  let videoUri = interaction.output_video?.uri ?? '';
+  let videoMime = interaction.output_video?.mime_type || 'video/mp4';
+
+  if (!videoBase64 && !videoUri && Array.isArray(interaction.steps)) {
+    for (const step of interaction.steps) {
+      if (step.type === 'model_output' && Array.isArray(step.content)) {
+        for (const item of step.content) {
+          if (item.type === 'video') {
+            if (typeof item.data === 'string' && item.data) {
+              videoBase64 = item.data;
+            }
+            if (typeof item.uri === 'string' && item.uri) {
+              videoUri = item.uri;
+            }
+            if (typeof item.mime_type === 'string' && item.mime_type) {
+              videoMime = item.mime_type;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (!videoBase64 && videoUri) {
+    const apiKey = process.env.GEMINI_API_KEY ?? '';
+    const dlRes = await fetch(videoUri, {
+      headers: apiKey ? { 'x-goog-api-key': apiKey } : undefined,
+    });
+    if (!dlRes.ok) {
+      return {
+        error: `Generated video URI could not be retrieved (HTTP ${dlRes.status}).`,
+      };
+    }
+    const arrBuf = await dlRes.arrayBuffer();
+    videoBase64 = Buffer.from(arrBuf).toString('base64');
+    const contentType = dlRes.headers.get('content-type');
+    if (contentType) {
+      videoMime = contentType;
+    }
+  }
+
+  if (!videoBase64) {
+    const apiErrors = Array.isArray(interaction.errors)
+      ? interaction.errors
+          .map((e) => (e && typeof e === 'object' && 'message' in e ? String(e.message) : ''))
+          .filter(Boolean)
+          .join('; ')
+      : '';
+    return {
+      error:
+        apiErrors ||
+        interaction.output_text ||
+        'No video clip was returned by gemini-omni-1.2-flash. Try refining the motion prompt.',
+    };
+  }
+
+  return {
+    result: {
+      videoDataUrl: `data:${videoMime};base64,${videoBase64}`,
+      mimeType: videoMime,
+      interactionId: interaction.id ?? '',
+      modelUsed: 'gemini-omni-1.2-flash',
+    },
+  };
+}
+
+function getInteractionErrorMessage(interaction: VideoInteractionLike): string {
+  const apiErrors = Array.isArray(interaction.errors)
+    ? interaction.errors
+        .map((e) => (e && typeof e === 'object' && 'message' in e ? String(e.message) : ''))
+        .filter(Boolean)
+        .join('; ')
+    : '';
+  return (
+    apiErrors ||
+    interaction.output_text ||
+    `Video generation stopped with status "${interaction.status}".`
+  );
+}
+
 async function startServer(): Promise<void> {
   const app = express();
   app.use(express.json({ limit: '25mb' }));
@@ -143,7 +259,7 @@ async function startServer(): Promise<void> {
         parts.push({
           inlineData: {
             data: stripDataUrlPrefix(body.referenceImageBase64),
-            mimeType: body.referenceMimeType || 'image/jpeg',
+            mimeType: body.referenceMimeType || 'image/png',
           },
         });
       }
@@ -210,8 +326,14 @@ async function startServer(): Promise<void> {
 
       const ai = createGeminiClient();
       const aspectRatio: '16:9' | '9:16' = body.aspectRatio === '9:16' ? '9:16' : '16:9';
-      const duration =
-        body.duration && VALID_VIDEO_DURATIONS.has(body.duration) ? body.duration : '6s';
+      const isExtension = Boolean(body.previousInteractionId);
+      const duration = isExtension
+        ? body.duration && VALID_EXTENSION_DURATIONS.has(body.duration)
+          ? body.duration
+          : '8s'
+        : body.duration && VALID_VIDEO_DURATIONS.has(body.duration)
+          ? body.duration
+          : '8s';
       const resolution: '360p' | '720p' | '1080p' =
         body.resolution === '1080p' || body.resolution === '360p' ? body.resolution : '720p';
 
@@ -219,7 +341,7 @@ async function startServer(): Promise<void> {
         ? [
             {
               type: 'image' as const,
-              mime_type: body.referenceMimeType || 'image/jpeg',
+              mime_type: body.referenceMimeType || 'image/png',
               data: stripDataUrlPrefix(body.referenceImageBase64),
             },
             {
@@ -229,156 +351,105 @@ async function startServer(): Promise<void> {
           ]
         : prompt;
 
-      const jobId = `vjob_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-      const jobRecord: VideoJobRecord = { status: 'pending' };
-      videoJobs.set(jobId, jobRecord);
-
-      const scheduleCleanup = () => {
-        setTimeout(() => {
-          videoJobs.delete(jobId);
-        }, 10 * 60 * 1000).unref?.();
-      };
-
-      const renderPromise = (async () => {
-        try {
-          const interaction = await ai.interactions.create(
-            {
-              model: 'gemini-omni-1.2-flash',
-              ...(body.previousInteractionId
-                ? { previous_interaction_id: body.previousInteractionId }
-                : {}),
-              input: inputPayload,
-              background: false,
-              store: true,
-              stream: false,
-              response_format: {
-                type: 'video',
-                aspect_ratio: aspectRatio,
-                duration,
-                resolution,
-              },
+      const interaction = await ai.interactions.create({
+        model: 'gemini-omni-1.2-flash',
+        ...(body.previousInteractionId
+          ? { previous_interaction_id: body.previousInteractionId }
+          : {}),
+        input: inputPayload,
+        background: true,
+        store: true,
+        stream: false,
+        response_format: isExtension
+          ? {
+              type: 'video',
+              duration,
+            }
+          : {
+              type: 'video',
+              aspect_ratio: aspectRatio,
+              duration,
+              resolution,
             },
-            { timeout: 300000 }
-          );
+        api_version: 'v1beta',
+      });
 
-          let videoBase64 = interaction.output_video?.data ?? '';
-          let videoUri = interaction.output_video?.uri ?? '';
-          let videoMime = interaction.output_video?.mime_type || 'video/mp4';
-
-          if (!videoBase64 && !videoUri && Array.isArray(interaction.steps)) {
-            for (const step of interaction.steps) {
-              if (step.type === 'model_output' && Array.isArray(step.content)) {
-                for (const item of step.content) {
-                  if (item.type === 'video') {
-                    if ('data' in item && typeof item.data === 'string' && item.data) {
-                      videoBase64 = item.data;
-                    }
-                    if ('uri' in item && typeof item.uri === 'string' && item.uri) {
-                      videoUri = item.uri;
-                    }
-                    if (
-                      'mime_type' in item &&
-                      typeof item.mime_type === 'string' &&
-                      item.mime_type
-                    ) {
-                      videoMime = item.mime_type;
-                    }
-                  }
-                }
-              }
-            }
-          }
-
-          if (!videoBase64 && videoUri) {
-            const apiKey = process.env.GEMINI_API_KEY ?? '';
-            const dlRes = await fetch(videoUri, {
-              headers: apiKey ? { 'x-goog-api-key': apiKey } : undefined,
-            });
-            if (!dlRes.ok) {
-              throw new Error(
-                `Generated video URI could not be retrieved (HTTP ${dlRes.status}).`
-              );
-            }
-            const arrBuf = await dlRes.arrayBuffer();
-            videoBase64 = Buffer.from(arrBuf).toString('base64');
-            const contentType = dlRes.headers.get('content-type');
-            if (contentType) {
-              videoMime = contentType;
-            }
-          }
-
-          if (!videoBase64) {
-            jobRecord.status = 'failed';
-            jobRecord.httpStatus = 502;
-            jobRecord.error =
-              interaction.output_text ||
-              'No video clip was returned by gemini-omni-1.2-flash. Try refining the motion prompt.';
-            return;
-          }
-
-          jobRecord.status = 'completed';
-          jobRecord.result = {
-            videoDataUrl: `data:${videoMime};base64,${videoBase64}`,
-            mimeType: videoMime,
-            interactionId: interaction.id ?? '',
-            modelUsed: 'gemini-omni-1.2-flash',
-          };
-        } catch (err) {
-          const formatted = formatGeminiError(err);
-          jobRecord.status = 'failed';
-          jobRecord.httpStatus = formatted.status;
-          jobRecord.error = formatted.message;
-        } finally {
-          scheduleCleanup();
+      if (interaction.status === 'completed') {
+        const extracted = await extractVideoFromInteraction(interaction);
+        if (extracted.error || !extracted.result) {
+          res.status(502).json({ error: extracted.error || 'Video output missing.' });
+          return;
         }
-      })();
-
-      // Wait briefly so immediate errors (4xx/config) or fast completions return synchronously,
-      // otherwise return 202 Accepted for client-side polling to avoid 60s reverse-proxy timeouts.
-      await Promise.race([
-        renderPromise,
-        new Promise<void>((resolve) => {
-          setTimeout(resolve, 3000);
-        }),
-      ]);
-
-      if (jobRecord.status === 'completed' && jobRecord.result) {
-        videoJobs.delete(jobId);
-        res.json(jobRecord.result);
+        res.json({ status: 'completed', ...extracted.result });
         return;
       }
 
-      if (jobRecord.status === 'failed') {
-        videoJobs.delete(jobId);
-        res.status(jobRecord.httpStatus ?? 500).json({ error: jobRecord.error });
+      if (TERMINAL_FAILURE_STATUSES.has(interaction.status)) {
+        res.status(502).json({ error: getInteractionErrorMessage(interaction) });
         return;
       }
 
-      res.status(202).json({ status: 'pending', jobId });
+      if (!interaction.id) {
+        res.status(502).json({ error: 'Video interaction started without a trackable ID.' });
+        return;
+      }
+
+      res.status(202).json({
+        status: 'pending',
+        jobId: interaction.id,
+        providerStatus: interaction.status,
+      });
     } catch (err) {
       const formatted = formatGeminiError(err);
       res.status(formatted.status).json({ error: formatted.message });
     }
   });
 
-  app.get('/api/gemini/video/:jobId', (req: Request, res: Response) => {
-    const rawId = req.params.jobId;
-    const jobId = Array.isArray(rawId) ? rawId[0] : rawId;
-    const job = jobId ? videoJobs.get(jobId) : undefined;
-    if (!job) {
-      res.status(404).json({ error: 'Video render job not found or expired. Please try again.' });
-      return;
+  app.get('/api/gemini/video/:jobId', async (req: Request, res: Response) => {
+    try {
+      const rawId = req.params.jobId;
+      const interactionId = Array.isArray(rawId) ? rawId[0] : rawId;
+      if (!interactionId || !/^[a-zA-Z0-9_.-]{4,180}$/.test(interactionId)) {
+        res.status(400).json({ error: 'Invalid video interaction ID.' });
+        return;
+      }
+
+      const ai = createGeminiClient();
+      const interaction = await ai.interactions.get(interactionId, {
+        api_version: 'v1beta',
+        stream: false,
+      });
+
+      if (interaction.status === 'completed') {
+        const extracted = await extractVideoFromInteraction(interaction);
+        if (extracted.error || !extracted.result) {
+          res.status(502).json({
+            status: 'failed',
+            error: extracted.error || 'Video output missing.',
+          });
+          return;
+        }
+        res.json({ status: 'completed', ...extracted.result });
+        return;
+      }
+
+      if (TERMINAL_FAILURE_STATUSES.has(interaction.status)) {
+        res.status(502).json({
+          status: 'failed',
+          error: getInteractionErrorMessage(interaction),
+        });
+        return;
+      }
+
+      res.json({
+        status: 'pending',
+        jobId: interaction.id,
+        providerStatus: interaction.status,
+      });
+    } catch (err) {
+      const formatted = formatGeminiError(err);
+      res.status(formatted.status).json({ status: 'failed', error: formatted.message });
     }
-    if (job.status === 'pending') {
-      res.json({ status: 'pending', jobId });
-      return;
-    }
-    videoJobs.delete(jobId);
-    if (job.status === 'failed') {
-      res.status(job.httpStatus ?? 500).json({ status: 'failed', error: job.error });
-      return;
-    }
-    res.json({ status: 'completed', ...job.result });
   });
 
   const distPath = path.join(__dirname, 'dist');

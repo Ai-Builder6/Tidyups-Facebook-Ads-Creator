@@ -619,7 +619,7 @@ export const LogoIconStudioPage: React.FC<LogoIconStudioPageProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            const svgName = item.fileName.replace('.jpg', '.svg');
+                            const svgName = item.fileName.replace(/\.(jpg|jpeg|png)$/i, '.svg');
                             triggerBrowserDownload(
                               svgName,
                               buildTidyupsSvgLogo(item.surface, item.lockupKind),

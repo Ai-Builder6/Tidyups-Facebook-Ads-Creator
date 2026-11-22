@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Download, Sparkles } from 'lucide-react';
-import bookMyCleaningLightJpg from '../assets/images/bookmycleaning_mascot_light_1794991815101.jpg';
 import bunnyIconJpg from '../assets/images/tidyups_bunny_icon_1794991817403.jpg';
 import mascotDarkJpg from '../assets/images/tidyups_mascot_dark_1794991814613.jpg';
 import mascotLightJpg from '../assets/images/tidyups_mascot_light_1794991811247.jpg';
 import { triggerBrowserDownload } from '../utils/adGenerator';
+
+export const OFFICIAL_BOOKMYCLEANING_LOGO_PATH =
+  '/assets/aistudio/Bunny_Tidyups_Cleaning_Service_Logo_15ee01fd.png';
 
 export type ThemeMode = 'light' | 'dark';
 export type BrandLockupKind = 'tidyups' | 'bookmycleaning';
@@ -40,12 +42,12 @@ export const OFFICIAL_MASCOT_REFERENCES: OfficialMascotReference[] = [
   },
   {
     id: 'bookmycleaning-light',
-    title: 'BookMyCleaning · Tidyups Lockup',
-    subtitle: 'Stacked BookMyCleaning + Tidyups 3D gradient wordmark & mascot emblem',
+    title: 'BookMyCleaning · Tidyups Official Logo',
+    subtitle: 'Official uploaded BookMyCleaning + Tidyups bunny mascot & feather duster PNG',
     surface: 'light',
     lockupKind: 'bookmycleaning',
-    src: bookMyCleaningLightJpg,
-    fileName: 'bookmycleaning-tidyups-logo.jpg',
+    src: OFFICIAL_BOOKMYCLEANING_LOGO_PATH,
+    fileName: 'bookmycleaning-tidyups-official-logo.png',
   },
   {
     id: 'tidyups-bunny-icon',
@@ -291,18 +293,19 @@ export const BrandLogoKit: React.FC<BrandLogoKitProps> = ({ onStatus, onOpenFull
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-semibold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] whitespace-nowrap shrink-0 cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    JPG
+                    {item.fileName.toLowerCase().endsWith('.png') ? 'PNG' : 'JPG'}
                   </button>
                   {item.id !== 'tidyups-bunny-icon' && (
                     <button
                       type="button"
                       onClick={() => {
+                        const svgName = item.fileName.replace(/\.(jpg|jpeg|png)$/i, '.svg');
                         triggerBrowserDownload(
-                          item.fileName.replace('.jpg', '.svg'),
+                          svgName,
                           buildTidyupsSvgLogo(item.surface, item.lockupKind),
                           'image/svg+xml;charset=utf-8'
                         );
-                        onStatus(`Downloaded ${item.fileName.replace('.jpg', '.svg')}.`);
+                        onStatus(`Downloaded ${svgName}.`);
                       }}
                       className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-semibold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] whitespace-nowrap shrink-0 cursor-pointer"
                     >
