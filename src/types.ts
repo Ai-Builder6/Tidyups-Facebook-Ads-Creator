@@ -28,7 +28,6 @@ export type AppPage =
   | 'campaigns'
   | 'images'
   | 'videos'
-  | 'brand'
   | 'booking'
   | 'support'
   | 'terms'

@@ -464,10 +464,10 @@ export const VideoCreatorPage: React.FC<VideoCreatorPageProps> = ({
         {/* Left Controls */}
         <section className="bg-white dark:bg-[#181226] border border-[#e8e1ef] dark:border-[#2d2342] rounded-2xl p-6">
           <h2 className="text-lg font-bold text-[#241436] dark:text-slate-100 mb-1">
-            AI Video Ad Creator
+            Campaign Video Creator
           </h2>
           <p className="text-xs text-[#6c6277] dark:text-slate-400 leading-relaxed mb-4">
-            Produce vertical Reels, Stories, and landscape Facebook video commercials—or animate your Tidyups bunny mascot—with Firestore portfolio storage and Google Drive MP4 backup.
+            Produce Facebook posts, Reels, Stories, and landscape video commercials for BookMyCleaning-Tidyups (facebook.com/tidyupsbooking) with your official logo, Firestore portfolio, and Google Drive MP4 backup.
           </p>
 
           {/* Segmented Mode Switch */}

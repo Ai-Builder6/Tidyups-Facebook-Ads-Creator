@@ -5,6 +5,7 @@ import {
   Check,
   CheckCircle2,
   Copy,
+  ExternalLink,
   Mail,
   MapPin,
   Phone,
@@ -21,7 +22,11 @@ import {
   CustomerInquiryRecord,
   InquiryCategory,
 } from '../types';
-import { PAGE_PATHS } from '../utils/routing';
+import {
+  OFFICIAL_BOOKING_URL,
+  OFFICIAL_FACEBOOK_URL,
+  PAGE_PATHS,
+} from '../utils/routing';
 
 interface ContactPageProps {
   user: User | null;
@@ -207,6 +212,36 @@ export const ContactPage: React.FC<ContactPageProps> = ({
                     )}
                     Copy
                   </button>
+                </div>
+
+                <div className="py-3.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs text-[#6c6277] dark:text-slate-400">Facebook Page (BookMyCleaning-Tidyups)</div>
+                    <a
+                      href={OFFICIAL_FACEBOOK_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-extrabold text-[#56249a] dark:text-[#c084fc] hover:underline inline-flex items-center gap-1.5 mt-0.5 truncate"
+                    >
+                      facebook.com/tidyupsbooking
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                    </a>
+                  </div>
+                </div>
+
+                <div className="py-3.5 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-xs text-[#6c6277] dark:text-slate-400">Online Booking</div>
+                    <a
+                      href={OFFICIAL_BOOKING_URL}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm font-extrabold text-[#56249a] dark:text-[#c084fc] hover:underline inline-flex items-center gap-1.5 mt-0.5 truncate"
+                    >
+                      app.tidyupscleaning.com/booking
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                    </a>
+                  </div>
                 </div>
 
                 <div className="py-3.5">

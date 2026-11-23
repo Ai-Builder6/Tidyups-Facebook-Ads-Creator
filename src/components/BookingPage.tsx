@@ -28,7 +28,11 @@ import {
   SqftTier,
 } from '../types';
 import { SERVICE_DATA, triggerBrowserDownload } from '../utils/adGenerator';
-import { getFullPageUrl, PAGE_PATHS } from '../utils/routing';
+import {
+  OFFICIAL_BOOKING_URL,
+  OFFICIAL_FACEBOOK_URL,
+  PAGE_PATHS,
+} from '../utils/routing';
 
 interface BookingPageProps {
   user: User | null;
@@ -163,7 +167,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
   };
 
   const copyBookingPageUrl = async () => {
-    const url = getFullPageUrl('booking');
+    const url = OFFICIAL_BOOKING_URL;
     try {
       await navigator.clipboard.writeText(url);
       setCopiedUrl(true);
@@ -258,7 +262,8 @@ export const BookingPage: React.FC<BookingPageProps> = ({
       `Customer          : ${record.customerName} (${record.customerPhone} · ${record.customerEmail})`,
       `Estimated Total   : $${record.estimatedTotalCad} CAD (includes 5% Alberta GST)`,
       '',
-      'Tidyups Cleaning Service Inc. · Edmonton, Alberta',
+      'BookMyCleaning-Tidyups (Tidyups Cleaning Service Inc.) · Edmonton, Alberta',
+      'Booking Page: https://app.tidyupscleaning.com/booking · Facebook: https://facebook.com/tidyupsbooking',
       'Phone: 587-742-2500 · Email: booking@tidyupscleaning.com',
       'Backed by our 24-Hour Walkthrough Satisfaction Guarantee.',
     ].join('\r\n');
@@ -281,7 +286,7 @@ export const BookingPage: React.FC<BookingPageProps> = ({
           <div className="lg:col-span-7 p-6 sm:p-8 lg:p-10 flex flex-col justify-between">
             <div>
               <p className="text-xs font-semibold text-[#56249a] dark:text-[#c084fc] m-0">
-                BookMyCleaning · Edmonton, Alberta + 20 km · Instant Estimate
+                BookMyCleaning-Tidyups · Edmonton, Alberta + 20 km · 587-742-2500 · booking@tidyupscleaning.com
               </p>
               <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-[#241436] dark:text-white mt-2.5 mb-3 text-balance">
                 Book Spotless Home, Move-Out &amp; Office Cleaning in Minutes
@@ -308,20 +313,29 @@ export const BookingPage: React.FC<BookingPageProps> = ({
                 className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] whitespace-nowrap shrink-0 cursor-pointer"
               >
                 {copiedUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                Copy /booking Link
+                Copy Booking URL
               </button>
 
               <button
                 type="button"
                 onClick={() => {
-                  const fullUrl = getFullPageUrl('booking');
-                  onUseBookingUrlInAds(fullUrl);
+                  onUseBookingUrlInAds(OFFICIAL_BOOKING_URL);
                 }}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#211934] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] whitespace-nowrap shrink-0 cursor-pointer"
               >
                 <Link2 className="w-3.5 h-3.5" />
                 Use in Active Ad Campaign
               </button>
+
+              <a
+                href={OFFICIAL_FACEBOOK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-bold text-[#56249a] dark:text-[#c084fc] underline whitespace-nowrap shrink-0"
+              >
+                Facebook Page
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
             </div>
           </div>
 

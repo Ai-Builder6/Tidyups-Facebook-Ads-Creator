@@ -1,10 +1,16 @@
 import { AppPage } from '../types';
 
+export const OFFICIAL_BRAND_NAME = 'BookMyCleaning-Tidyups';
+export const OFFICIAL_BOOKING_URL = 'https://app.tidyupscleaning.com/booking';
+export const OFFICIAL_FACEBOOK_URL = 'https://facebook.com/tidyupsbooking';
+export const OFFICIAL_PHONE = '587-742-2500';
+export const OFFICIAL_PHONE_HREF = 'tel:5877422500';
+export const OFFICIAL_EMAIL = 'booking@tidyupscleaning.com';
+
 export const PAGE_PATHS: Record<AppPage, string> = {
   campaigns: '/',
   images: '/images',
   videos: '/videos',
-  brand: '/brand',
   booking: '/booking',
   support: '/support',
   terms: '/t&c',
@@ -13,14 +19,13 @@ export const PAGE_PATHS: Record<AppPage, string> = {
 };
 
 export const PAGE_TITLES: Record<AppPage, string> = {
-  campaigns: 'Tidyups | Facebook Ads Creator',
-  images: 'AI Image Ad Creator | Tidyups',
-  videos: 'AI Video Ad Creator | Tidyups',
-  brand: 'Logo & Icon Studio | Tidyups',
-  booking: 'Book Online | Tidyups Cleaning Service Inc.',
-  support: 'Support Center | Tidyups Cleaning Service Inc.',
+  campaigns: 'BookMyCleaning-Tidyups | Facebook Posts & Ads Creator',
+  images: 'Campaign Image Creator | BookMyCleaning-Tidyups',
+  videos: 'Campaign Video Creator | BookMyCleaning-Tidyups',
+  booking: 'Book Online | BookMyCleaning-Tidyups',
+  support: 'Support Center | BookMyCleaning-Tidyups',
   terms: 'Terms & Conditions | Tidyups Cleaning Service Inc.',
-  contact: 'Contact Us | Tidyups Cleaning Service Inc.',
+  contact: 'Contact Us | BookMyCleaning-Tidyups',
   privacy: 'Privacy Policy | Tidyups Cleaning Service Inc.',
 };
 
@@ -48,11 +53,14 @@ export function resolvePageFromPath(rawPathname: string): AppPage {
   if (clean === '/privacy' || clean === '/privacy-policy') return 'privacy';
   if (clean === '/images') return 'images';
   if (clean === '/videos') return 'videos';
-  if (clean === '/brand') return 'brand';
+  if (clean === '/adstudio') return 'campaigns';
   return 'campaigns';
 }
 
 export function getFullPageUrl(page: AppPage): string {
+  if (page === 'booking') {
+    return OFFICIAL_BOOKING_URL;
+  }
   if (typeof window === 'undefined') {
     return `https://app.tidyupscleaning.com${PAGE_PATHS[page]}`;
   }

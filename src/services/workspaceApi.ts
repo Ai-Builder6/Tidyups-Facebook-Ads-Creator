@@ -582,7 +582,8 @@ function buildCampaignBriefRows(settings: CampaignSettings, ads: GeneratedAd[]):
   const angleLabel = TONE_LABELS[settings.tone] ?? settings.tone;
   const formatLabel = FORMAT_LABELS[settings.format] ?? settings.format;
   return [
-    ['Brand', 'Tidyups Cleaning Service Inc.', 'Edmonton, Alberta'],
+    ['Brand', 'BookMyCleaning-Tidyups (Tidyups Cleaning Service Inc.)', 'Edmonton, Alberta'],
+    ['Facebook Page', 'https://facebook.com/tidyupsbooking', 'Official BookMyCleaning-Tidyups FB Page'],
     ['Campaign Name', settings.title.trim() || `${serviceLabel} Campaign`, 'Active Campaign Draft'],
     ['Cleaning Service', serviceLabel, 'Target service category'],
     ['Advertising Angle', angleLabel, 'Primary conversion hook'],
@@ -592,6 +593,7 @@ function buildCampaignBriefRows(settings: CampaignSettings, ads: GeneratedAd[]):
     ['Target Area', settings.area.trim(), 'Geo-targeting radius in Meta Ads Manager'],
     ['Booking Destination URL', settings.booking.trim(), 'HTTPS conversion URL'],
     ['Business Phone', settings.phone.trim(), 'Call / SMS extension number'],
+    ['Booking Email', 'booking@tidyupscleaning.com', 'Official customer & lead inbox'],
     [
       'Additional Instructions',
       settings.notes.trim() || 'Standard brand guidelines',
@@ -1236,13 +1238,15 @@ function buildLeadAdsInstantFormMarkdown(
     .join('\n\n---\n\n');
 
   return [
-    `# Tidyups Meta Lead Ads Launch Kit — ${settings.title.trim() || serviceName}`,
+    `# BookMyCleaning-Tidyups Meta Lead Ads Launch Kit — ${settings.title.trim() || serviceName}`,
     ``,
-    `- **Business:** Tidyups Cleaning Service Inc. (Edmonton, AB)`,
+    `- **Business:** BookMyCleaning-Tidyups (Tidyups Cleaning Service Inc., Edmonton, AB)`,
+    `- **Facebook Page:** https://facebook.com/tidyupsbooking`,
     `- **Service Focus:** ${serviceName}`,
     `- **Advertising Angle:** ${angleName}`,
     `- **Target Area:** ${settings.area.trim()}`,
     `- **Phone:** ${settings.phone.trim()}`,
+    `- **Email:** booking@tidyupscleaning.com`,
     `- **Booking Page:** ${settings.booking.trim()}`,
     `- **${offerLine}**`,
     ``,

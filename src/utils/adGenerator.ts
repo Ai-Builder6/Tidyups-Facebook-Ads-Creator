@@ -239,9 +239,10 @@ function buildCaption(s: CampaignSettings, index: number): string {
   const offerLine = s.offer.trim() ? `\n\n${s.offer.trim()}.` : '';
   return (
     `${topic}\n\n` +
-    `Tidyups Cleaning Service offers professional ${d.name.toLowerCase()} in the ${s.area.trim() || 'Edmonton'} area, including ${benefit}. ${angleCopy(s.tone)}${offerLine}\n\n` +
+    `BookMyCleaning-Tidyups (Tidyups Cleaning Service Inc.) offers professional ${d.name.toLowerCase()} in the ${s.area.trim() || 'Edmonton'} area, including ${benefit}. ${angleCopy(s.tone)}${offerLine}\n\n` +
     `Request a quote or book online: ${s.booking.trim()}\n` +
-    `Call or text: ${s.phone.trim()}`
+    `Call or text: ${s.phone.trim()} · Email: booking@tidyupscleaning.com\n` +
+    `Follow us on Facebook: https://facebook.com/tidyupsbooking`
   );
 }
 
@@ -250,19 +251,19 @@ export function makeAd(s: CampaignSettings, index: number): GeneratedAd {
   const headline = d.head[index % d.head.length];
   const primary = buildCaption(s, index);
   const areaLabel = s.area.trim() || 'Edmonton & surrounding areas';
-  const description = `${s.offer.trim() ? `${s.offer.trim()} • ` : ''}${areaLabel}. Request a cleaning quote.`;
+  const description = `${s.offer.trim() ? `${s.offer.trim()} • ` : ''}${areaLabel}. Book online at app.tidyupscleaning.com/booking.`;
   const notesSuffix = s.notes.trim() ? ` ${s.notes.trim()}` : '';
   const prompt =
-    `Photorealistic premium Facebook/Instagram advertisement for Tidyups Cleaning Service Inc., Edmonton, Alberta. ${d.scene}. ` +
+    `Photorealistic premium Facebook post and ad creative for BookMyCleaning-Tidyups (Tidyups Cleaning Service Inc.), Edmonton, Alberta. ${d.scene}. ` +
     `Brand style: purple, pink and white; cleaner wearing clean purple polo, natural daylight, premium commercial photography; authentic home, realistic equipment, clean composition. ` +
-    `Frame ${s.format}. Do not invent or distort logos, lettering, discounts or company claims. Leave negative space for manually added exact logo and CTA.${notesSuffix}`;
+    `Frame ${s.format}. Do not invent or distort logos, lettering, discounts or company claims. Leave negative space for the official BookMyCleaning-Tidyups logo and CTA.${notesSuffix}`;
   const script =
     `0–3s: Show the cleaning need in a realistic Edmonton home or workplace.\n` +
     `3–7s: Smooth close-up shots of professionals performing ${d.name.toLowerCase()}.\n` +
     `7–10s: Reveal a bright, beautifully clean finished space.\n` +
     `Voiceover: '${voiceover(s.service, index)}'\n` +
-    `End card: 'Tidyups Cleaning Service | Edmonton | ${s.phone.trim()} | Book Online'\n` +
-    `Format: ${s.format}; add official company bunny logo in editing. Use licensed music only.`;
+    `End card: 'BookMyCleaning-Tidyups | Edmonton | ${s.phone.trim()} | app.tidyupscleaning.com/booking'\n` +
+    `Format: ${s.format}; feature the official BookMyCleaning-Tidyups bunny logo. Use licensed music only.`;
 
   return {
     id: `ad_${index + 1}`,
@@ -310,8 +311,12 @@ export function adsToCsv(ads: GeneratedAd[]): string {
 export function adsToJson(ads: GeneratedAd[], campaignTitle?: string): string {
   return JSON.stringify(
     {
-      brand: 'Tidyups Cleaning Service Inc.',
-      campaign: campaignTitle || 'Tidyups Campaign',
+      brand: 'BookMyCleaning-Tidyups (Tidyups Cleaning Service Inc.)',
+      facebook_page: 'https://facebook.com/tidyupsbooking',
+      booking_page: 'https://app.tidyupscleaning.com/booking',
+      contact_phone: '587-742-2500',
+      contact_email: 'booking@tidyupscleaning.com',
+      campaign: campaignTitle || 'BookMyCleaning-Tidyups Campaign',
       generated_at: new Date().toISOString(),
       ads,
     },

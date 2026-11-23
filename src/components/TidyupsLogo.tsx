@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, Sparkles } from 'lucide-react';
+import { Download } from 'lucide-react';
 import bunnyIconJpg from '../assets/images/tidyups_bunny_icon_1794991817403.jpg';
 import mascotDarkJpg from '../assets/images/tidyups_mascot_dark_1794991814613.jpg';
 import mascotLightJpg from '../assets/images/tidyups_mascot_light_1794991811247.jpg';
@@ -206,10 +206,9 @@ export function buildTidyupsSvgLogo(
 
 interface BrandLogoKitProps {
   onStatus: (msg: string) => void;
-  onOpenFullStudio?: () => void;
 }
 
-export const BrandLogoKit: React.FC<BrandLogoKitProps> = ({ onStatus, onOpenFullStudio }) => {
+export const BrandLogoKit: React.FC<BrandLogoKitProps> = ({ onStatus }) => {
   const [failedIds, setFailedIds] = useState<Record<string, boolean>>({});
 
   const downloadAssetFile = async (url: string, fileName: string) => {
@@ -234,18 +233,8 @@ export const BrandLogoKit: React.FC<BrandLogoKitProps> = ({ onStatus, onOpenFull
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-xs text-[#6c6277] dark:text-slate-400 m-0">
-          Official Tidyups bunny mascot logos (Light, Dark, BookMyCleaning lockup &amp; square mascot icon).
+          Official BookMyCleaning-Tidyups logos ready to attach in Facebook posts, image ads, and video commercials.
         </p>
-        {onOpenFullStudio && (
-          <button
-            type="button"
-            onClick={onOpenFullStudio}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] text-white text-xs font-bold whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            Open AI Logo &amp; Icon Creator
-          </button>
-        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

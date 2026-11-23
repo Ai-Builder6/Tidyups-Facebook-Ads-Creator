@@ -111,7 +111,7 @@ export const ImageCreatorPage: React.FC<ImageCreatorPageProps> = ({
   const [quality, setQuality] = useState<'fast' | 'hd'>('hd');
   const [imageSize, setImageSize] = useState<'1K' | '2K'>('1K');
   const [useMascotReference, setUseMascotReference] = useState<boolean>(false);
-  const [selectedMascotId, setSelectedMascotId] = useState<string>('tidyups-light');
+  const [selectedMascotId, setSelectedMascotId] = useState<string>('bookmycleaning-light');
   const [stampCornerBadge, setStampCornerBadge] = useState<boolean>(false);
 
   const [prompt, setPrompt] = useState<string>(
@@ -373,10 +373,10 @@ export const ImageCreatorPage: React.FC<ImageCreatorPageProps> = ({
         {/* Left Controls */}
         <section className="bg-white dark:bg-[#181226] border border-[#e8e1ef] dark:border-[#2d2342] rounded-2xl p-6">
           <h2 className="text-lg font-bold text-[#241436] dark:text-slate-100 mb-1">
-            AI Image Ad Creator
+            Campaign Image Creator
           </h2>
           <p className="text-xs text-[#6c6277] dark:text-slate-400 leading-relaxed mb-4">
-            Generate scroll-stopping Facebook &amp; Instagram cleaning visuals, composite your Tidyups bunny mascot, and store every creative in your Firestore portfolio.
+            Create scroll-stopping Facebook posts and ad visuals for BookMyCleaning-Tidyups (facebook.com/tidyupsbooking), attach your official logo, and save every creative to Firestore.
           </p>
 
           <label

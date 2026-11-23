@@ -66,7 +66,6 @@ interface WorkspaceHubProps {
   onRequestConfirmation: (confirmation: PendingConfirmation) => void;
   onStatus: (msg: string) => void;
   onTokenExpired: () => void;
-  onOpenLogoStudio?: () => void;
 }
 
 function getDriveWebUrl(id: string, name: string, mimeType?: string): string {
@@ -102,7 +101,6 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
   onRequestConfirmation,
   onStatus,
   onTokenExpired,
-  onOpenLogoStudio,
 }) => {
   const [busyAction, setBusyAction] = useState<string | null>(null);
 
@@ -557,7 +555,7 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
           }`}
         >
           <Palette className="w-3.5 h-3.5" />
-          Brand Logos (Light &amp; Dark)
+          Official Logos
         </button>
       </div>
 
@@ -1077,9 +1075,9 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
         </div>
       )}
 
-      {/* TAB 4: Light & Dark Brand Logo Kit */}
+      {/* TAB 4: Official Brand Logos */}
       {activeTab === 'logos' && (
-        <BrandLogoKit onStatus={onStatus} onOpenFullStudio={onOpenLogoStudio} />
+        <BrandLogoKit onStatus={onStatus} />
       )}
     </div>
   );

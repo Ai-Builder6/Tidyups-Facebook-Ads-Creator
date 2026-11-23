@@ -20,7 +20,6 @@ import { ConfirmModal } from './components/ConfirmModal';
 import { ContactPage } from './components/ContactPage';
 import { GoogleSignInButton } from './components/GoogleSignInButton';
 import { ImageCreatorPage } from './components/ImageCreatorPage';
-import { LogoIconStudioPage } from './components/LogoIconStudioPage';
 import { PrivacyPage } from './components/PrivacyPage';
 import { SupportPage } from './components/SupportPage';
 import { TermsPage } from './components/TermsPage';
@@ -79,7 +78,12 @@ import {
   triggerBrowserDownload,
 } from './utils/adGenerator';
 import {
-  getFullPageUrl,
+  OFFICIAL_BOOKING_URL,
+  OFFICIAL_BRAND_NAME,
+  OFFICIAL_EMAIL,
+  OFFICIAL_FACEBOOK_URL,
+  OFFICIAL_PHONE,
+  OFFICIAL_PHONE_HREF,
   PAGE_PATHS,
   PAGE_TITLES,
   resolvePageFromPath,
@@ -633,14 +637,13 @@ export const App: React.FC = () => {
             <TidyupsLogoLockup variant={theme} />
           </a>
 
-          {/* Zone 2: 5 Clean Single-Line Nav Links */}
+          {/* Zone 2: 4 Clean Single-Line Nav Links */}
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#6c6277] dark:text-slate-300">
             {(
               [
                 { key: 'campaigns', label: 'Campaigns' },
                 { key: 'images', label: 'Image Creator' },
                 { key: 'videos', label: 'Video Creator' },
-                { key: 'brand', label: 'Logo Studio' },
                 { key: 'booking', label: 'Book Cleaning' },
               ] as Array<{ key: AppPage; label: string }>
             ).map((navItem) => {
@@ -699,17 +702,39 @@ export const App: React.FC = () => {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#241436] dark:text-white m-0">
-              Tidyups Facebook &amp; Instagram Ads Creator
+              {OFFICIAL_BRAND_NAME} · Facebook Posts &amp; Ads Creator
             </h1>
             <p className="text-xs sm:text-sm text-[#6c6277] dark:text-slate-400 mt-1 mb-0 tabular-nums">
-              Edmonton, AB · Colored-tab Sheets · 1-click Leads Ads Drive · AI Creative Suite &amp; Customer Portal ({portfolioAssets.length} saved assets)
+              Ad Studio for{' '}
+              <a
+                href={OFFICIAL_FACEBOOK_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold text-[#56249a] dark:text-[#c084fc] underline"
+              >
+                facebook.com/tidyupsbooking
+              </a>{' '}
+              · Campaign Copy, Image Creator &amp; Video Creator ({portfolioAssets.length} saved assets) ·{' '}
+              <a
+                href={OFFICIAL_PHONE_HREF}
+                className="hover:underline"
+              >
+                {OFFICIAL_PHONE}
+              </a>{' '}
+              ·{' '}
+              <a
+                href={`mailto:${OFFICIAL_EMAIL}`}
+                className="hover:underline"
+              >
+                {OFFICIAL_EMAIL}
+              </a>
             </p>
           </div>
 
           {/* Interactive Light / Dark Theme Segmented Control */}
           <div className="flex items-center gap-2">
             <a
-              href={PAGE_PATHS.booking}
+              href={OFFICIAL_BOOKING_URL}
               onClick={(e) => {
                 if (!e.metaKey && !e.ctrlKey && e.button === 0) {
                   e.preventDefault();
@@ -718,7 +743,7 @@ export const App: React.FC = () => {
               }}
               className="px-3 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] bg-white dark:bg-[#181226] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#221936] whitespace-nowrap shrink-0 cursor-pointer"
             >
-              Online Booking (/booking)
+              Booking Page (/booking)
             </a>
 
             <div
@@ -762,9 +787,8 @@ export const App: React.FC = () => {
             {(
               [
                 { key: 'campaigns', label: 'Campaigns' },
-                { key: 'images', label: 'Image Ads' },
-                { key: 'videos', label: 'Video Ads' },
-                { key: 'brand', label: 'Logos & Icons' },
+                { key: 'images', label: 'Image Creator' },
+                { key: 'videos', label: 'Video Creator' },
               ] as Array<{ key: AppPage; label: string }>
             ).map((item) => (
               <a
@@ -866,32 +890,6 @@ export const App: React.FC = () => {
             portfolioAssets={portfolioAssets}
             initialPrompt={handoffVideoPrompt}
             initialTitle={handoffVideoTitle}
-            onDeleteAsset={handleRequestDeletePortfolioAsset}
-            onRequestConfirmation={(nextConfirm) =>
-              setConfirmation({
-                ...nextConfirm,
-                onConfirm: async () => {
-                  try {
-                    await nextConfirm.onConfirm();
-                  } finally {
-                    setConfirmation(null);
-                  }
-                },
-              })
-            }
-            onStatus={setStatus}
-            status={status}
-          />
-        </main>
-      )}
-
-      {activePage === 'brand' && (
-        <main className="max-w-[1200px] w-full mx-auto my-6 px-5 flex-1">
-          <LogoIconStudioPage
-            user={user}
-            accessToken={accessToken}
-            onSignIn={handleSignIn}
-            portfolioAssets={portfolioAssets}
             onDeleteAsset={handleRequestDeletePortfolioAsset}
             onRequestConfirmation={(nextConfirm) =>
               setConfirmation({
@@ -1114,13 +1112,12 @@ export const App: React.FC = () => {
             <button
               type="button"
               onClick={() => {
-                const localBookingUrl = getFullPageUrl('booking');
-                updateSetting('booking', localBookingUrl);
-                setStatus(`Set booking destination to ${localBookingUrl}`);
+                updateSetting('booking', OFFICIAL_BOOKING_URL);
+                setStatus(`Set booking destination to ${OFFICIAL_BOOKING_URL}`);
               }}
               className="text-[11px] font-bold text-[#56249a] dark:text-[#c084fc] underline cursor-pointer"
             >
-              Use /booking page
+              Use app.tidyupscleaning.com/booking
             </button>
           </div>
           <input
@@ -1215,7 +1212,6 @@ export const App: React.FC = () => {
               clearAccessToken();
               setAccessToken(null);
             }}
-            onOpenLogoStudio={() => navigateToPage('brand')}
           />
 
           {/* 1-Click Cloud & Local Export Bar */}
@@ -1597,26 +1593,37 @@ export const App: React.FC = () => {
       <footer className="max-w-[1200px] w-full mx-auto px-5 pt-5 pb-8 border-t border-[#e8e1ef] dark:border-[#221936] text-[#766684] dark:text-slate-400 text-xs leading-relaxed tabular-nums print:hidden space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            Tidyups Cleaning Service Inc. · Edmonton, AB ·{' '}
+            {OFFICIAL_BRAND_NAME} (Tidyups Cleaning Service Inc.) · Edmonton, AB ·{' '}
             <a
-              href="tel:5877422500"
+              href={OFFICIAL_PHONE_HREF}
               className="underline hover:text-[#56249a] dark:hover:text-[#c084fc]"
             >
-              587-742-2500
+              {OFFICIAL_PHONE}
             </a>{' '}
             ·{' '}
             <a
-              href="mailto:booking@tidyupscleaning.com"
+              href={`mailto:${OFFICIAL_EMAIL}`}
               className="underline hover:text-[#56249a] dark:hover:text-[#c084fc]"
             >
-              booking@tidyupscleaning.com
+              {OFFICIAL_EMAIL}
+            </a>{' '}
+            ·{' '}
+            <a
+              href={OFFICIAL_FACEBOOK_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-[#56249a] dark:hover:text-[#c084fc]"
+            >
+              facebook.com/tidyupsbooking
             </a>
           </div>
 
           <nav aria-label="Footer navigation" className="flex flex-wrap items-center gap-3 font-semibold">
             {(
               [
-                { key: 'campaigns', label: 'Ads Studio' },
+                { key: 'campaigns', label: 'Ad Studio' },
+                { key: 'images', label: 'Image Creator' },
+                { key: 'videos', label: 'Video Creator' },
                 { key: 'booking', label: 'Booking' },
                 { key: 'support', label: 'Support' },
                 { key: 'contact', label: 'Contact' },
@@ -1645,7 +1652,25 @@ export const App: React.FC = () => {
           </nav>
         </div>
         <p className="m-0">
-          Campaign drafts require review before publishing. Promotions apply only when approved by Tidyups Cleaning Service Inc.
+          Created to build Facebook posts, image ads, and video commercials for{' '}
+          <a
+            href={OFFICIAL_FACEBOOK_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-[#56249a] dark:hover:text-[#c084fc]"
+          >
+            {OFFICIAL_FACEBOOK_URL}
+          </a>{' '}
+          ({OFFICIAL_BRAND_NAME}) · Official booking page:{' '}
+          <a
+            href={OFFICIAL_BOOKING_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-[#56249a] dark:hover:text-[#c084fc]"
+          >
+            {OFFICIAL_BOOKING_URL}
+          </a>
+          . Campaign drafts require review before publishing.
         </p>
       </footer>
 
