@@ -3,6 +3,7 @@ import { User } from 'firebase/auth';
 import {
   Cloud,
   ExternalLink,
+  FileArchive,
   FileSpreadsheet,
   FolderOpen,
   FolderUp,
@@ -37,9 +38,10 @@ import {
 } from '../types';
 import { adsToCsv, adsToJson, SERVICE_DATA } from '../utils/adGenerator';
 import { GoogleSignInButton } from './GoogleSignInButton';
+import { MetaAppSetupPanel } from './MetaAppSetupPanel';
 import { BrandLogoKit } from './TidyupsLogo';
 
-export type HubTab = 'cloud' | 'sheets' | 'drive' | 'logos';
+export type HubTab = 'cloud' | 'sheets' | 'drive' | 'meta' | 'logos';
 
 interface WorkspaceHubProps {
   activeTab: HubTab;
@@ -542,6 +544,20 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
         >
           <HardDrive className="w-3.5 h-3.5" />
           Google Drive
+        </button>
+
+        <button
+          type="button"
+          id="meta-app-setup-tab"
+          onClick={() => onTabChange('meta')}
+          className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
+            activeTab === 'meta'
+              ? 'bg-white dark:bg-[#241b38] text-[#241436] dark:text-white shadow-xs'
+              : 'text-[#6c6277] dark:text-slate-400 hover:text-[#241436] dark:hover:text-slate-200'
+          }`}
+        >
+          <FileArchive className="w-3.5 h-3.5" />
+          Meta App Setup (.zip)
         </button>
 
         <button
@@ -1075,10 +1091,11 @@ export const WorkspaceHub: React.FC<WorkspaceHubProps> = ({
         </div>
       )}
 
-      {/* TAB 4: Official Brand Logos */}
-      {activeTab === 'logos' && (
-        <BrandLogoKit onStatus={onStatus} />
-      )}
+      {/* TAB 4: Meta App Setup Kit (.zip) */}
+      {activeTab === 'meta' && <MetaAppSetupPanel onStatus={onStatus} />}
+
+      {/* TAB 5: Official Brand Logos */}
+      {activeTab === 'logos' && <BrandLogoKit onStatus={onStatus} />}
     </div>
   );
 };

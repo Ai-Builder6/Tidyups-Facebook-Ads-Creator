@@ -6,6 +6,7 @@ import {
   Download,
   Edit3,
   ExternalLink,
+  FileArchive,
   FileSpreadsheet,
   Film,
   FolderUp,
@@ -46,6 +47,7 @@ import {
   deleteCreativeAssetFromFirestore,
   subscribeToPortfolioAssets,
 } from './services/portfolioStore';
+import { generateAndDownloadMetaAppSetupZip } from './services/metaAppSetupKit';
 import {
   createNewCampaignSpreadsheet,
   LeadsAdsFolderBundleResult,
@@ -159,9 +161,26 @@ export const App: React.FC = () => {
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
 
-  // 1-Click Google Workspace export state
+  // 1-Click Google Workspace export & Meta Setup ZIP state
   const [workspaceBusyAction, setWorkspaceBusyAction] = useState<string | null>(null);
   const [lastLeadsBundle, setLastLeadsBundle] = useState<LeadsAdsFolderBundleResult | null>(null);
+
+  const handleQuickDownloadMetaSetupZip = async () => {
+    setWorkspaceBusyAction('meta-zip');
+    setStatus('Building Meta App Setup Kit (.zip) with 1024×1024 App Icon and all Meta URLs…');
+    try {
+      const result = await generateAndDownloadMetaAppSetupZip();
+      setHubTab('meta');
+      setStatus(
+        `Downloaded ${result.fileName} (${result.fileCount} files ready for developers.facebook.com).`
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setStatus(`Failed to generate Meta App Setup ZIP: ${msg}`);
+    } finally {
+      setWorkspaceBusyAction(null);
+    }
+  };
 
   // Firestore campaigns, creative portfolio, bookings, inquiries & Workspace links
   const [savedCampaigns, setSavedCampaigns] = useState<SavedCampaign[]>([]);
@@ -732,7 +751,21 @@ export const App: React.FC = () => {
           </div>
 
           {/* Interactive Light / Dark Theme Segmented Control */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={workspaceBusyAction !== null}
+              onClick={() => {
+                void handleQuickDownloadMetaSetupZip();
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] text-white text-xs font-bold hover:opacity-95 disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
+            >
+              <FileArchive className="w-3.5 h-3.5" />
+              {workspaceBusyAction === 'meta-zip'
+                ? 'Building Meta ZIP…'
+                : 'Meta App Setup (.zip)'}
+            </button>
+
             <a
               href={OFFICIAL_BOOKING_URL}
               onClick={(e) => {
@@ -1290,6 +1323,20 @@ export const App: React.FC = () => {
               >
                 <Download className="w-3.5 h-3.5" />
                 Download JSON
+              </button>
+
+              <button
+                type="button"
+                disabled={workspaceBusyAction !== null}
+                onClick={() => {
+                  void handleQuickDownloadMetaSetupZip();
+                }}
+                className="inline-flex items-center gap-1.5 bg-white dark:bg-[#211934] border border-[#d9c9e5] dark:border-[#392b54] text-[#56249a] dark:text-[#d8b4fe] font-bold text-xs px-3.5 py-2.5 rounded-xl hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] disabled:opacity-50 whitespace-nowrap shrink-0 cursor-pointer"
+              >
+                <FileArchive className="w-3.5 h-3.5" />
+                {workspaceBusyAction === 'meta-zip'
+                  ? 'Building Meta ZIP…'
+                  : 'Download Meta App Setup (.zip)'}
               </button>
 
               <button

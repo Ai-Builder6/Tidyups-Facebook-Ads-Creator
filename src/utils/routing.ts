@@ -50,7 +50,14 @@ export function resolvePageFromPath(rawPathname: string): AppPage {
     return 'terms';
   }
   if (clean === '/contact' || clean === '/contact-us') return 'contact';
-  if (clean === '/privacy' || clean === '/privacy-policy') return 'privacy';
+  if (
+    clean === '/privacy' ||
+    clean === '/privacy-policy' ||
+    clean === '/data-deletion' ||
+    clean === '/data-deletion-instructions'
+  ) {
+    return 'privacy';
+  }
   if (clean === '/images') return 'images';
   if (clean === '/videos') return 'videos';
   if (clean === '/adstudio') return 'campaigns';

@@ -62,8 +62,16 @@ const PRIVACY_SECTIONS: PrivacySection[] = [
     ],
   },
   {
+    id: 'data-deletion',
+    heading: '07. User Data Deletion Instructions (Meta / Facebook Compliance)',
+    paragraphs: [
+      'If you interacted with BookMyCleaning-Tidyups (https://facebook.com/tidyupsbooking), submitted a Meta Lead Ad Instant Form, requested a cleaning quote, or signed into our web app, you may request permanent deletion of your personal data at any time by emailing booking@tidyupscleaning.com with the subject "Data Deletion Request", calling or texting 587-742-2500, or submitting a request on /support.',
+      'Include your full name and the email address or phone number used in your submission. Our Privacy Coordinator will verify and permanently delete all eligible personal data within 7 business days (subject only to mandatory Canadian tax retention laws) and send written email confirmation. You may also revoke Facebook App access directly in Facebook Settings > Apps and Websites.',
+    ],
+  },
+  {
     id: 'privacy-officer',
-    heading: '07. Privacy Officer & Contact Information',
+    heading: '08. Privacy Officer & Contact Information',
     paragraphs: [
       'To exercise your privacy rights, request data deletion, or ask questions about how Tidyups handles personal information, contact our Privacy Coordinator at Tidyups Cleaning Service Inc., Edmonton, Alberta — Email: booking@tidyupscleaning.com · Phone: 587-742-2500.',
     ],
@@ -71,17 +79,22 @@ const PRIVACY_SECTIONS: PrivacySection[] = [
 ];
 
 export const PrivacyPage: React.FC<PrivacyPageProps> = ({ onNavigate, onStatus }) => {
-  const [copiedUrl, setCopiedUrl] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState<'privacy' | 'deletion' | null>(null);
 
-  const copyPrivacyUrl = async () => {
-    const url = getFullPageUrl('privacy');
+  const copyMetaUrl = async (kind: 'privacy' | 'deletion') => {
+    const basePrivacy = getFullPageUrl('privacy');
+    const url = kind === 'deletion' ? `${basePrivacy}#data-deletion` : basePrivacy;
     try {
       await navigator.clipboard.writeText(url);
-      setCopiedUrl(true);
-      onStatus(`Copied Meta Lead Form Privacy URL (${url}) to clipboard.`);
-      setTimeout(() => setCopiedUrl(false), 1800);
+      setCopiedUrl(kind);
+      onStatus(
+        kind === 'deletion'
+          ? `Copied Meta Data Deletion URL (${url}) to clipboard.`
+          : `Copied Meta Lead Form Privacy URL (${url}) to clipboard.`
+      );
+      setTimeout(() => setCopiedUrl((prev) => (prev === kind ? null : prev)), 1800);
     } catch {
-      onStatus(`Privacy Policy URL: ${url}`);
+      onStatus(`URL: ${url}`);
     }
   };
 
@@ -121,12 +134,31 @@ export const PrivacyPage: React.FC<PrivacyPageProps> = ({ onNavigate, onStatus }
           <button
             type="button"
             onClick={() => {
-              void copyPrivacyUrl();
+              void copyMetaUrl('privacy');
             }}
             className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-[#5c28a1] to-[#9e2c9b] text-white text-xs font-bold hover:opacity-95 whitespace-nowrap cursor-pointer"
           >
-            {copiedUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-            Copy /privacy URL for Ads
+            {copiedUrl === 'privacy' ? (
+              <Check className="w-3.5 h-3.5" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+            Copy /privacy URL for Meta
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              void copyMetaUrl('deletion');
+            }}
+            className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-[#d9c9e5] dark:border-[#392b54] text-xs font-bold text-[#56249a] dark:text-[#d8b4fe] hover:bg-[#faf3fc] dark:hover:bg-[#2a2042] whitespace-nowrap cursor-pointer"
+          >
+            {copiedUrl === 'deletion' ? (
+              <Check className="w-3.5 h-3.5" />
+            ) : (
+              <Copy className="w-3.5 h-3.5" />
+            )}
+            Copy Data Deletion URL
           </button>
 
           <div className="grid grid-cols-2 gap-2">
